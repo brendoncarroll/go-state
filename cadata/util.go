@@ -88,7 +88,7 @@ func CopyAllBasic(ctx context.Context, dst, src Store) error {
 	for i := 0; i < numWorkers; i++ {
 		eg.Go(func() error {
 			for id := range ch {
-				if err := Copy(ctx, src, dst, id); err != nil {
+				if err := Copy(ctx, dst, src, id); err != nil {
 					return err
 				}
 			}
