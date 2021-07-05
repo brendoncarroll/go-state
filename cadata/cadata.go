@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/zeebo/blake3"
+	"lukechampine.com/blake3"
 )
 
 type HashFunc = func(data []byte) ID
