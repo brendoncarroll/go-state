@@ -3,7 +3,9 @@ package fsstore
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"path"
 	"path/filepath"
@@ -35,10 +37,10 @@ func (s FSStore) Post(ctx context.Context, data []byte) (cadata.ID, error) {
 	staging := stagingPathForID(id)
 	final := pathForID(id)
 	if err := s.ensureDirForPath(staging); err != nil {
-		return cadata.ID{}, nil
+		return cadata.ID{}, err
 	}
 	if err := s.ensureDirForPath(final); err != nil {
-		return cadata.ID{}, nil
+		return cadata.ID{}, err
 	}
 	if err := atomicPutFile(ctx, s.fs, staging, final, 0o600, data); err != nil {
 		return cadata.ID{}, err
@@ -95,9 +97,13 @@ func (s FSStore) Delete(ctx context.Context, id cadata.ID) error {
 
 func (s FSStore) List(ctx context.Context, first []byte, ids []cadata.ID) (int, error) {
 	var n int
-	err := fs.WalkLeaves(s.fs, "", func(p string, dirEnt fs.DirEnt) error {
+	stopIter := errors.New("stopIter")
+	err := fs.WalkLeaves(ctx, s.fs, "", func(p string, dirEnt fs.DirEnt) error {
 		if strings.HasPrefix(p, "tmp/") {
 			return nil
+		}
+		if n >= len(ids) {
+			return stopIter
 		}
 		id, err := parsePath(p)
 		if err != nil {
@@ -110,10 +116,13 @@ func (s FSStore) List(ctx context.Context, first []byte, ids []cadata.ID) (int, 
 		n++
 		return nil
 	})
+	if err == stopIter {
+		return n, nil
+	}
 	if err != nil {
 		return 0, err
 	}
-	if n == 0 {
+	if err == nil {
 		err = cadata.ErrEndOfList
 	}
 	return n, err
@@ -129,7 +138,7 @@ func (s FSStore) Hash(x []byte) cadata.ID {
 
 func (s FSStore) ensureDirForPath(p string) error {
 	dirPath := path.Dir(p)
-	return s.fs.Mkdir(dirPath, 0o755)
+	return fs.MkdirAll(s.fs, dirPath, 0o755)
 }
 
 var enc = base64.RawURLEncoding
@@ -155,7 +164,11 @@ func parsePath(p string) (cadata.ID, error) {
 }
 
 func stagingPathForID(id cadata.ID) string {
-	p := enc.EncodeToString(id[:])
+	randBytes := [16]byte{}
+	if _, err := rand.Read(randBytes[:]); err != nil {
+		panic(err)
+	}
+	p := fmt.Sprintf("%s.%x", enc.EncodeToString(id[:16]), randBytes)
 	return filepath.Join("tmp", p)
 }
 

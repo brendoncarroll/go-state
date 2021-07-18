@@ -43,6 +43,7 @@ type DirEnt struct {
 type FileInfo = gofs.FileInfo
 
 type File interface {
+	Stat() (FileInfo, error)
 	Sync() error
 	io.Closer
 }

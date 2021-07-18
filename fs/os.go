@@ -83,6 +83,10 @@ func (f osFile) Sync() error {
 	return f.f.Sync()
 }
 
+func (f osFile) Stat() (FileInfo, error) {
+	return f.f.Stat()
+}
+
 var _ Directory = osDir{}
 
 type osDir struct {
@@ -110,4 +114,8 @@ func (d osDir) Close() error {
 
 func (d osDir) Sync() error {
 	return d.f.Sync()
+}
+
+func (d osDir) Stat() (FileInfo, error) {
+	return d.f.Stat()
 }

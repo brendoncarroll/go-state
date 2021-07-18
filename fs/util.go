@@ -129,15 +129,30 @@ func maybeSetReadDeadline(ctx context.Context, f File) error {
 // WalkLeaves walks fsx starting at path p, and calls fn for every non-dir file encountered.
 // The first argument to fn will be the path of the file.
 // The second argument to fn will be its DirEnt in its immediate parent in the walk.
-func WalkLeaves(x FS, p string, fn func(string, DirEnt) error) error {
-	dirEnts, err := ReadDir(x, p)
+func WalkLeaves(ctx context.Context, x FS, p string, fn func(string, DirEnt) error) error {
+	f, err := x.OpenFile(p, O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+	dir, ok := f.(Directory)
+	if !ok {
+		finfo, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		return fn(p, DirEnt{Name: finfo.Name(), Mode: finfo.Mode()})
+	}
+	dirEnts, err := dir.ReadDir(0)
 	if err != nil {
 		return err
 	}
 	for _, dirEnt := range dirEnts {
 		p2 := path.Join(p, dirEnt.Name)
 		if dirEnt.Mode.IsDir() {
-			if err := WalkLeaves(x, p2, fn); err != nil {
+			if err := checkContext(ctx); err != nil {
+				return err
+			}
+			if err := WalkLeaves(ctx, x, p2, fn); err != nil {
 				return err
 			}
 		} else {
@@ -145,6 +160,46 @@ func WalkLeaves(x FS, p string, fn func(string, DirEnt) error) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func checkContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
+	}
+}
+
+func cleanPath(x string) string {
+	x = path.Clean(x)
+	if x == "." || x == "/" {
+		x = ""
+	}
+	return x
+}
+
+// MkdirAll creates all of the directories from the root of x, down to p
+func MkdirAll(x FS, p string, perm FileMode) error {
+	p = cleanPath(p)
+	if p != "" {
+		parent, _ := path.Split(p)
+		if err := MkdirAll(x, parent, perm); err != nil {
+			return err
+		}
+	}
+	err := x.Mkdir(p, perm)
+	if IsErrExist(err) {
+		finfo, err := x.Stat(p)
+		if err != nil {
+			return err
+		}
+		if !finfo.IsDir() {
+			return errors.Errorf("non-dir at %v", p)
+		}
+		return nil
 	}
 	return err
 }
