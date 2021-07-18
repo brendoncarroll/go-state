@@ -95,7 +95,7 @@ func (s FSStore) Delete(ctx context.Context, id cadata.ID) error {
 
 func (s FSStore) List(ctx context.Context, first []byte, ids []cadata.ID) (int, error) {
 	var n int
-	err := walkLeaves(s.fs, "", func(p string, dirEnt fs.DirEnt) error {
+	err := fs.WalkLeaves(s.fs, "", func(p string, dirEnt fs.DirEnt) error {
 		if strings.HasPrefix(p, "tmp/") {
 			return nil
 		}
@@ -157,26 +157,6 @@ func parsePath(p string) (cadata.ID, error) {
 func stagingPathForID(id cadata.ID) string {
 	p := enc.EncodeToString(id[:])
 	return filepath.Join("tmp", p)
-}
-
-func walkLeaves(fsx fs.FS, p string, fn func(string, fs.DirEnt) error) error {
-	dirEnts, err := fs.ReadDir(fsx, p)
-	if err != nil {
-		return err
-	}
-	for _, dirEnt := range dirEnts {
-		p2 := path.Join(p, dirEnt.Name)
-		if dirEnt.Mode.IsDir() {
-			if err := walkLeaves(fsx, p2, fn); err != nil {
-				return err
-			}
-		} else {
-			if err := fn(p2, dirEnt); err != nil {
-				return err
-			}
-		}
-	}
-	return err
 }
 
 func atomicPutFile(ctx context.Context, fsx fs.FS, staging, final string, mode fs.FileMode, buf []byte) error {

@@ -6,6 +6,7 @@ import (
 	gofs "io/fs"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -123,4 +124,27 @@ func maybeSetReadDeadline(ctx context.Context, f File) error {
 		return nil
 	}
 	return x.SetReadDeadline(deadline)
+}
+
+// WalkLeaves walks fsx starting at path p, and calls fn for every non-dir file encountered.
+// The first argument to fn will be the path of the file.
+// The second argument to fn will be its DirEnt in its immediate parent in the walk.
+func WalkLeaves(x FS, p string, fn func(string, DirEnt) error) error {
+	dirEnts, err := ReadDir(x, p)
+	if err != nil {
+		return err
+	}
+	for _, dirEnt := range dirEnts {
+		p2 := path.Join(p, dirEnt.Name)
+		if dirEnt.Mode.IsDir() {
+			if err := WalkLeaves(x, p2, fn); err != nil {
+				return err
+			}
+		} else {
+			if err := fn(p2, dirEnt); err != nil {
+				return err
+			}
+		}
+	}
+	return err
 }
