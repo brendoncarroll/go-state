@@ -18,13 +18,17 @@ func IDFromBytes(x []byte) ID {
 	return id
 }
 
-func ZeroID() ID { return ID{} }
-
 func (id ID) String() string {
 	return base64.RawURLEncoding.EncodeToString(id[:])
 }
 
-func (id *ID) UnmarshalB64(data []byte) error {
+func (id ID) MarshalBase64() ([]byte, error) {
+	buf := make([]byte, base64.RawURLEncoding.EncodedLen(len(id)))
+	base64.RawURLEncoding.Encode(buf, id[:])
+	return buf, nil
+}
+
+func (id *ID) UnmarshalBase64(data []byte) error {
 	n, err := base64.RawURLEncoding.Decode(id[:], data)
 	if err != nil {
 		return err
@@ -41,6 +45,10 @@ func (a ID) Equals(b ID) bool {
 
 func (a ID) Cmp(b ID) int {
 	return bytes.Compare(a[:], b[:])
+}
+
+func (id ID) IsZero() bool {
+	return id == (ID{})
 }
 
 func (id ID) MarshalJSON() ([]byte, error) {

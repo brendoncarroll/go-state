@@ -42,20 +42,19 @@ func (s *MemStore) Read(ctx context.Context, id ID, buf []byte) (int, error) {
 	return copy(buf, data), nil
 }
 
-func (s *MemStore) List(ctx context.Context, prefix []byte, ids []ID) (n int, err error) {
+func (s *MemStore) List(ctx context.Context, first []byte, ids []ID) (n int, err error) {
 	s.m.Range(func(k, v interface{}) bool {
-		if n >= len(ids) {
-			err = ErrTooMany
-			return false
-		}
 		id := k.(ID)
-		if !bytes.HasPrefix(id[:], prefix) {
+		if bytes.Compare(id[:], first) < 0 {
 			return true
 		}
 		ids[n] = id
 		n++
-		return true
+		return len(ids) < n
 	})
+	if n == 0 {
+		err = ErrEndOfList
+	}
 	return n, err
 }
 

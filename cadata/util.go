@@ -1,39 +1,49 @@
 package cadata
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"runtime"
 
+	"github.com/brendoncarroll/go-state"
 	"golang.org/x/sync/errgroup"
 )
 
 // ForEach calls fn once with every ID in s
 func ForEach(ctx context.Context, s Lister, fn func(ID) error) error {
-	return forEach(ctx, s, []byte{}, fn)
+	return ForEachRange(ctx, s, state.ByteRange{}, fn)
 }
 
-func forEach(ctx context.Context, s Lister, prefix []byte, fn func(ID) error) error {
+// ForEachRange calls fn with every ID in the range
+func ForEachRange(ctx context.Context, s Lister, r state.ByteRange, fn func(ID) error) error {
+	return forEach(ctx, s, r.First, r.Last, fn)
+}
+
+func forEach(ctx context.Context, s Lister, first, last []byte, fn func(ID) error) error {
+	first = append([]byte{}, first...)
 	ids := make([]ID, 1<<10)
-	n, err := s.List(ctx, prefix, ids)
-	switch {
-	case err == ErrTooMany:
-		for i := 0; i < 256; i++ {
-			prefix2 := append(prefix, byte(i))
-			if err := forEach(ctx, s, prefix2, fn); err != nil {
+	for {
+		n, err := s.List(ctx, first, ids)
+		if err != nil && err != ErrEndOfList {
+			return err
+		}
+		for i := 0; i < n; i++ {
+			if last != nil && bytes.Compare(ids[i][:], last) >= 0 {
+				return nil
+			}
+			if err := fn(ids[i]); err != nil {
 				return err
 			}
 		}
-		return nil
-	case err != nil:
-		return err
-	default:
-		for _, id := range ids[:n] {
-			if err := fn(id); err != nil {
-				return err
-			}
+		if err == ErrEndOfList {
+			return nil
 		}
-		return nil
+		if n > 0 {
+			first = first[:0]
+			first = append(first, ids[n-1][:]...)
+			first = append(first, 0x00)
+		}
 	}
 }
 

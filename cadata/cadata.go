@@ -15,28 +15,51 @@ func DefaultHash(x []byte) ID {
 
 const DefaultMaxSize = 1 << 20
 
+// Reader defines the Read method
 type Reader interface {
+	// Read copies data identified by id into buf.
+	// If not all the data can be copied, it returns io.ErrShortBuffer
+	// Otherwise n will be the number of bytes copied into buf.
 	Read(ctx context.Context, id ID, buf []byte) (int, error)
 }
 
+// Poster defines the Post method
 type Poster interface {
+	// Post will store data, and return an ID that can be used to retrieve it later
 	Post(ctx context.Context, data []byte) (ID, error)
 }
 
+// Adder defines the Add method
 type Adder interface {
+	// Add adds data to the store by ID.
+	// It will return ErrNotFound if the data cannot be added.
 	Add(ctx context.Context, id ID) error
 }
 
+// Deleter defines the Delete method
 type Deleter interface {
+	// Delete removes the data identified by id from the store
 	Delete(ctx context.Context, id ID) error
 }
 
+// Lister defines the List method
 type Lister interface {
-	List(ctx context.Context, prefix []byte, ids []ID) (int, error)
+	// List reads IDs from the store, in asceding order into ids.
+	// All the ids will be >= first.
+	List(ctx context.Context, first []byte, ids []ID) (int, error)
+}
+
+// Exister defines the Exists method
+type Exister interface {
+	// Exists returns true, nil if the ID exists, and false, nil if it does not.
+	// The boolean should not be interpretted if err != nil
+	Exists(ctx context.Context, id ID) (bool, error)
 }
 
 type Set interface {
-	Exists(ctx context.Context, id ID) (bool, error)
+	Adder
+	Deleter
+	Exister
 	Lister
 }
 
@@ -44,16 +67,18 @@ type Store interface {
 	Poster
 	Reader
 	Deleter
-	Set
+	Lister
+	Exister
 
 	Hash(data []byte) ID
 	MaxSize() int
 }
 
 var (
-	ErrNotFound = errors.New("no data found with that ID")
-	ErrTooLarge = errors.New("data is too large for store")
-	ErrTooMany  = errors.New("too many blobs to list")
+	ErrNotFound  = errors.New("no data found with that ID")
+	ErrTooLarge  = errors.New("data is too large for store")
+	ErrEndOfList = errors.New("end of list")
+	ErrBadData   = errors.New("data does not match ID")
 )
 
 func IsNotFound(err error) bool {
@@ -64,6 +89,15 @@ func IsTooLarge(err error) bool {
 	return err == ErrTooLarge
 }
 
-func IsTooMany(err error) bool {
-	return err == ErrTooMany
+func IsEndOfList(err error) bool {
+	return err == ErrEndOfList
+}
+
+// Check ensures that hf(data) == id and returns ErrBadData if it does not.
+func Check(hf HashFunc, id ID, data []byte) error {
+	id2 := hf(data)
+	if id != id2 {
+		return ErrBadData
+	}
+	return nil
 }

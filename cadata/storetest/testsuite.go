@@ -26,6 +26,13 @@ func TestStore(t *testing.T, newStore func(t testing.TB) Store) {
 		dataOut := get(t, s, id2)
 		require.Equal(t, testData, dataOut)
 	})
+	t.Run("TestList", func(t *testing.T) {
+		s := newStore(t)
+		testData := make([]byte, 1024)
+		post(t, s, testData)
+		ids := list(t, s)
+		require.Len(t, ids, 1)
+	})
 }
 
 func get(t *testing.T, s Store, id ID) []byte {
@@ -48,4 +55,14 @@ func exists(t *testing.T, s Store, id ID) bool {
 	yes, err := s.Exists(ctx, id)
 	require.NoError(t, err)
 	return yes
+}
+
+func list(t *testing.T, s Store) (ret []cadata.ID) {
+	ctx := context.Background()
+	err := cadata.ForEach(ctx, s, func(id ID) error {
+		ret = append(ret, id)
+		return nil
+	})
+	require.NoError(t, err)
+	return ret
 }
