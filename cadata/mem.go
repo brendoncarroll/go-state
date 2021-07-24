@@ -30,7 +30,7 @@ func (s *MemStore) Post(ctx context.Context, data []byte) (ID, error) {
 	return id, nil
 }
 
-func (s *MemStore) Read(ctx context.Context, id ID, buf []byte) (int, error) {
+func (s *MemStore) Get(ctx context.Context, id ID, buf []byte) (int, error) {
 	v, exists := s.m.Load(id)
 	if !exists {
 		return 0, ErrNotFound
@@ -92,7 +92,7 @@ func (s Void) Post(ctx context.Context, data []byte) (ID, error) {
 	return DefaultHash(data), nil
 }
 
-func (s Void) Read(ctx context.Context, id ID, buf []byte) (int, error) {
+func (s Void) Get(ctx context.Context, id ID, buf []byte) (int, error) {
 	return 0, ErrNotFound
 }
 

@@ -48,7 +48,7 @@ func (s FSStore) Post(ctx context.Context, data []byte) (cadata.ID, error) {
 	return id, nil
 }
 
-func (s FSStore) Read(ctx context.Context, id cadata.ID, buf []byte) (int, error) {
+func (s FSStore) Get(ctx context.Context, id cadata.ID, buf []byte) (int, error) {
 	p := pathForID(id)
 	f, err := s.fs.OpenFile(p, fs.O_RDONLY, 0)
 	if err != nil {

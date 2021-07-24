@@ -15,12 +15,13 @@ func DefaultHash(x []byte) ID {
 
 const DefaultMaxSize = 1 << 20
 
-// Reader defines the Read method
-type Reader interface {
-	// Read copies data identified by id into buf.
+// Getter defines the Read method
+type Getter interface {
+	// Get copies data identified by id into buf.
 	// If not all the data can be copied, it returns io.ErrShortBuffer
 	// Otherwise n will be the number of bytes copied into buf.
-	Read(ctx context.Context, id ID, buf []byte) (int, error)
+	Get(ctx context.Context, id ID, buf []byte) (int, error)
+	MaxSize() int
 }
 
 // Poster defines the Post method
@@ -65,7 +66,7 @@ type Set interface {
 
 type Store interface {
 	Poster
-	Reader
+	Getter
 	Deleter
 	Lister
 	Exister

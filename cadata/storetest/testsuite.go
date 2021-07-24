@@ -15,7 +15,7 @@ type (
 )
 
 func TestStore(t *testing.T, newStore func(t testing.TB) Store) {
-	t.Run("ExistsPostRead", func(t *testing.T) {
+	t.Run("ExistsPostGet", func(t *testing.T) {
 		s := newStore(t)
 		testData := make([]byte, 1024)
 		id1 := s.Hash(testData)
@@ -33,14 +33,20 @@ func TestStore(t *testing.T, newStore func(t testing.TB) Store) {
 		ids := list(t, s)
 		require.Len(t, ids, 1)
 	})
+	t.Run("RecallOne", func(t *testing.T) {
+		s := newStore(t)
+		testData := []byte("test string goes here")
+		id := post(t, s, testData)
+		actual := get(t, s, id)
+		require.Equal(t, testData, actual)
+	})
 }
 
 func get(t *testing.T, s Store, id ID) []byte {
 	ctx := context.Background()
-	buf := make([]byte, s.MaxSize())
-	n, err := s.Read(ctx, id, buf)
+	data, err := cadata.GetBytes(ctx, s, id)
 	require.NoError(t, err)
-	return buf[:n]
+	return data
 }
 
 func post(t *testing.T, s Store, data []byte) ID {

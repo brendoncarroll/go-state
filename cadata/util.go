@@ -48,14 +48,14 @@ func forEach(ctx context.Context, s Lister, first, last []byte, fn func(ID) erro
 }
 
 // Copy copies the data referenced by id from src to dst.
-func Copy(ctx context.Context, dst Poster, src Reader, id ID) error {
+func Copy(ctx context.Context, dst Poster, src Getter, id ID) error {
 	if adder, ok := dst.(Adder); ok {
 		if err := adder.Add(ctx, id); err != ErrNotFound {
 			return err
 		}
 	}
 	buf := make([]byte, DefaultMaxSize)
-	n, err := src.Read(ctx, id, buf)
+	n, err := src.Get(ctx, id, buf)
 	if err != nil {
 		return err
 	}
@@ -114,3 +114,21 @@ func DeleteAll(ctx context.Context, s Store) error {
 		return s.Delete(ctx, id)
 	})
 }
+
+func GetF(ctx context.Context, s Getter, id ID, fn func([]byte)error)error {
+	if getF, ok := s.(interface{GetF(context.Context, ID, func([]byte)error) error }); ok {
+		return getF.GetF(ctx, id, fn)
+	}
+	data, err := GetBytes(ctx, s, id)
+	if err != nil {
+		return err
+	}
+	return fn(data)
+}
+
+func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
+	buf := make([]byte, s.MaxSize())
+	n, err := s.Get(ctx, id, buf)
+	return buf[:n], err
+}
+
