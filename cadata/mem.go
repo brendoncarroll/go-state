@@ -43,6 +43,9 @@ func (s *MemStore) Get(ctx context.Context, id ID, buf []byte) (int, error) {
 }
 
 func (s *MemStore) List(ctx context.Context, first []byte, ids []ID) (n int, err error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
 	s.m.Range(func(k, v interface{}) bool {
 		id := k.(ID)
 		if bytes.Compare(id[:], first) < 0 {
