@@ -1,4 +1,4 @@
-package fs
+package posixfs
 
 import (
 	"context"
@@ -23,11 +23,8 @@ func ReadDir(fs FS, p string) ([]DirEnt, error) {
 	if err != nil {
 		return nil, err
 	}
-	dir, ok := f.(Directory)
-	if !ok {
-		return nil, errors.Errorf("non-directory at %q", p)
-	}
-	return dir.ReadDir(0)
+	defer f.Close()
+	return f.ReadDir(0)
 }
 
 // PutFile opens the file in fs at path p, truncates it, and writes from r until io.EOF
@@ -37,14 +34,10 @@ func PutFile(ctx context.Context, fs FS, p string, perm os.FileMode, r io.Reader
 		return err
 	}
 	defer f.Close()
-	rf, ok := f.(RegularFile)
-	if !ok {
-		return errors.Errorf("cannot write to non-regular file at %q", p)
-	}
-	if err := maybeSetReadDeadline(ctx, rf); err != nil {
+	if err := maybeSetWriteDeadline(ctx, f); err != nil {
 		return err
 	}
-	if _, err := io.Copy(rf, r); err != nil {
+	if _, err := io.Copy(f, r); err != nil {
 		return err
 	}
 	return f.Close()
@@ -56,14 +49,10 @@ func AppendFile(ctx context.Context, fs FS, p string, perm os.FileMode, data []b
 		return err
 	}
 	defer f.Close()
-	rf, ok := f.(RegularFile)
-	if !ok {
-		return errors.Errorf("cannot append to non-regular file at %q", p)
-	}
-	if err := maybeSetWriteDeadline(ctx, rf); err != nil {
+	if err := maybeSetWriteDeadline(ctx, f); err != nil {
 		return err
 	}
-	if _, err := rf.Write(data); err != nil {
+	if _, err := f.Write(data); err != nil {
 		return err
 	}
 	return f.Close()
@@ -76,14 +65,10 @@ func ReadFile(ctx context.Context, fs FS, p string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	rf, ok := f.(RegularFile)
-	if !ok {
-		return nil, errors.Errorf("cannot read from non-regular file at %q", p)
-	}
-	if err := maybeSetWriteDeadline(ctx, rf); err != nil {
+	if err := maybeSetReadDeadline(ctx, f); err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(rf)
+	return ioutil.ReadAll(f)
 }
 
 // DeleteFile is an idempotent delete operation.
@@ -98,7 +83,7 @@ func DeleteFile(ctx context.Context, fs FS, p string) error {
 
 func maybeSetWriteDeadline(ctx context.Context, f File) error {
 	type writeDeadline interface {
-		SetWriteDeadlin(t time.Time) error
+		SetWriteDeadline(t time.Time) error
 	}
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -108,7 +93,7 @@ func maybeSetWriteDeadline(ctx context.Context, f File) error {
 	if !ok {
 		return nil
 	}
-	return x.SetWriteDeadlin(deadline)
+	return x.SetWriteDeadline(deadline)
 }
 
 func maybeSetReadDeadline(ctx context.Context, f File) error {
@@ -134,15 +119,14 @@ func WalkLeaves(ctx context.Context, x FS, p string, fn func(string, DirEnt) err
 	if err != nil {
 		return err
 	}
-	dir, ok := f.(Directory)
-	if !ok {
-		finfo, err := f.Stat()
-		if err != nil {
-			return err
-		}
+	finfo, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !finfo.IsDir() {
 		return fn(p, DirEnt{Name: finfo.Name(), Mode: finfo.Mode()})
 	}
-	dirEnts, err := dir.ReadDir(0)
+	dirEnts, err := f.ReadDir(0)
 	if err != nil {
 		return err
 	}

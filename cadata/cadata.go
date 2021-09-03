@@ -15,7 +15,7 @@ func DefaultHash(x []byte) ID {
 
 const DefaultMaxSize = 1 << 20
 
-// Getter defines the Read method
+// Getter defines the Get method
 type Getter interface {
 	// Get copies data identified by id into buf.
 	// If not all the data can be copied, it returns io.ErrShortBuffer

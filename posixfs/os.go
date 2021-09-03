@@ -1,4 +1,4 @@
-package fs
+package posixfs
 
 import (
 	"os"
@@ -23,16 +23,7 @@ func (osFS) OpenFile(p string, flag int, perm os.FileMode) (File, error) {
 	if err != nil {
 		return nil, err
 	}
-	finfo, err := f.Stat()
-	if err != nil {
-		f.Close()
-		return nil, err
-	}
-	if finfo.IsDir() {
-		return osDir{f}, nil
-	} else {
-		return osFile{f}, nil
-	}
+	return osFile{f}, nil
 }
 
 func (osFS) Mkdir(p string, perm os.FileMode) error {
@@ -61,8 +52,6 @@ func (osFS) Rename(oldPath, newPath string) error {
 	return os.Rename(oldPath, newPath)
 }
 
-var _ RegularFile = osFile{}
-
 type osFile struct {
 	f *os.File
 }
@@ -87,14 +76,12 @@ func (f osFile) Stat() (FileInfo, error) {
 	return f.f.Stat()
 }
 
-var _ Directory = osDir{}
-
-type osDir struct {
-	f *os.File
+func (f osFile) Seek(offset int64, whence int) (int64, error) {
+	return f.f.Seek(offset, whence)
 }
 
-func (d osDir) ReadDir(n int) ([]DirEnt, error) {
-	dirEnts, err := d.f.ReadDir(n)
+func (f osFile) ReadDir(n int) ([]DirEnt, error) {
+	dirEnts, err := f.f.ReadDir(n)
 	if err != nil {
 		return nil, err
 	}
@@ -106,16 +93,4 @@ func (d osDir) ReadDir(n int) ([]DirEnt, error) {
 		}
 	}
 	return ents, nil
-}
-
-func (d osDir) Close() error {
-	return d.f.Close()
-}
-
-func (d osDir) Sync() error {
-	return d.f.Sync()
-}
-
-func (d osDir) Stat() (FileInfo, error) {
-	return d.f.Stat()
 }

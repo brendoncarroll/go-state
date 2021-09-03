@@ -12,19 +12,19 @@ import (
 	"strings"
 
 	"github.com/brendoncarroll/go-state/cadata"
-	"github.com/brendoncarroll/go-state/fs"
+	"github.com/brendoncarroll/go-state/posixfs"
 	"github.com/pkg/errors"
 )
 
 var _ cadata.Store = FSStore{}
 
 type FSStore struct {
-	fs       fs.FS
+	fs       posixfs.FS
 	hashFunc cadata.HashFunc
 	maxSize  int
 }
 
-func New(x fs.FS, hashFunc cadata.HashFunc, maxSize int) FSStore {
+func New(x posixfs.FS, hashFunc cadata.HashFunc, maxSize int) FSStore {
 	return FSStore{
 		fs:       x,
 		hashFunc: hashFunc,
@@ -50,21 +50,17 @@ func (s FSStore) Post(ctx context.Context, data []byte) (cadata.ID, error) {
 
 func (s FSStore) Get(ctx context.Context, id cadata.ID, buf []byte) (int, error) {
 	p := pathForID(id)
-	f, err := s.fs.OpenFile(p, fs.O_RDONLY, 0)
+	f, err := s.fs.OpenFile(p, posixfs.O_RDONLY, 0)
 	if err != nil {
-		if fs.IsErrNotExist(err) {
+		if posixfs.IsErrNotExist(err) {
 			err = cadata.ErrNotFound
 		}
 		return 0, err
 	}
 	defer f.Close()
-	file, ok := f.(fs.RegularFile)
-	if !ok {
-		return 0, errors.Errorf("unexpected directory at %v", p)
-	}
 	var n int
 	for {
-		n2, err := file.Read(buf)
+		n2, err := f.Read(buf)
 		n += n2
 		if err != nil {
 			if err == io.EOF {
@@ -78,7 +74,7 @@ func (s FSStore) Get(ctx context.Context, id cadata.ID, buf []byte) (int, error)
 func (s FSStore) Exists(ctx context.Context, id cadata.ID) (bool, error) {
 	p := pathForID(id)
 	finfo, err := s.fs.Stat(p)
-	if errors.Is(err, fs.ErrNotExist) {
+	if posixfs.IsErrNotExist(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -92,13 +88,13 @@ func (s FSStore) Exists(ctx context.Context, id cadata.ID) (bool, error) {
 
 func (s FSStore) Delete(ctx context.Context, id cadata.ID) error {
 	p := pathForID(id)
-	return fs.DeleteFile(ctx, s.fs, p)
+	return posixfs.DeleteFile(ctx, s.fs, p)
 }
 
 func (s FSStore) List(ctx context.Context, first []byte, ids []cadata.ID) (int, error) {
 	var n int
 	stopIter := errors.New("stopIter")
-	err := fs.WalkLeaves(ctx, s.fs, "", func(p string, dirEnt fs.DirEnt) error {
+	err := posixfs.WalkLeaves(ctx, s.fs, "", func(p string, dirEnt posixfs.DirEnt) error {
 		if strings.HasPrefix(p, "tmp/") {
 			return nil
 		}
@@ -138,7 +134,7 @@ func (s FSStore) Hash(x []byte) cadata.ID {
 
 func (s FSStore) ensureDirForPath(p string) error {
 	dirPath := path.Dir(p)
-	return fs.MkdirAll(s.fs, dirPath, 0o755)
+	return posixfs.MkdirAll(s.fs, dirPath, 0o755)
 }
 
 var enc = base64.RawURLEncoding
@@ -172,8 +168,8 @@ func stagingPathForID(id cadata.ID) string {
 	return filepath.Join("tmp", p)
 }
 
-func atomicPutFile(ctx context.Context, fsx fs.FS, staging, final string, mode fs.FileMode, buf []byte) error {
-	if err := fs.PutFile(ctx, fsx, staging, mode, bytes.NewReader(buf)); err != nil {
+func atomicPutFile(ctx context.Context, fsx posixfs.FS, staging, final string, mode posixfs.FileMode, buf []byte) error {
+	if err := posixfs.PutFile(ctx, fsx, staging, mode, bytes.NewReader(buf)); err != nil {
 		return err
 	}
 	return fsx.Rename(staging, final)

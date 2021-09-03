@@ -1,4 +1,4 @@
-package fs
+package posixfs
 
 import (
 	"io"
@@ -46,16 +46,10 @@ type File interface {
 	Stat() (FileInfo, error)
 	Sync() error
 	io.Closer
-}
-
-type RegularFile interface {
-	File
-	io.Writer
 	io.Reader
-}
+	io.Writer
+	io.Seeker
 
-type Directory interface {
-	File
 	ReadDir(n int) ([]DirEnt, error)
 }
 
