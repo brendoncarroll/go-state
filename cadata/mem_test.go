@@ -9,6 +9,6 @@ import (
 
 func TestMemStore(t *testing.T) {
 	storetest.TestStore(t, func(t testing.TB) cadata.Store {
-		return cadata.NewMem(cadata.DefaultMaxSize)
+		return cadata.NewMem(cadata.DefaultHash, cadata.DefaultMaxSize)
 	})
 }

@@ -16,10 +16,10 @@ type MemStore struct {
 	m sync.Map
 }
 
-func NewMem(maxSize int) *MemStore {
+func NewMem(hf HashFunc, maxSize int) *MemStore {
 	return &MemStore{
 		maxSize: maxSize,
-		hash:    DefaultHash,
+		hash:    hf,
 	}
 }
 
