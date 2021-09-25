@@ -89,10 +89,20 @@ func (s *MemStore) MaxSize() int {
 
 var _ Store = Void{}
 
-type Void struct{}
+type Void struct {
+	hf      HashFunc
+	maxSize int
+}
+
+func NewVoid(hf HashFunc, maxSize int) Void {
+	return Void{
+		hf:      hf,
+		maxSize: maxSize,
+	}
+}
 
 func (s Void) Post(ctx context.Context, data []byte) (ID, error) {
-	return DefaultHash(data), nil
+	return s.Hash(data), nil
 }
 
 func (s Void) Get(ctx context.Context, id ID, buf []byte) (int, error) {
@@ -112,9 +122,9 @@ func (s Void) Delete(ctx context.Context, id ID) error {
 }
 
 func (s Void) MaxSize() int {
-	return DefaultMaxSize
+	return s.maxSize
 }
 
 func (s Void) Hash(x []byte) ID {
-	return DefaultHash(x)
+	return s.hf(x)
 }
