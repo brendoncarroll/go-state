@@ -21,6 +21,7 @@ type Getter interface {
 	// If not all the data can be copied, it returns io.ErrShortBuffer
 	// Otherwise n will be the number of bytes copied into buf.
 	Get(ctx context.Context, id ID, buf []byte) (int, error)
+	Hash(x []byte) ID
 	MaxSize() int
 }
 
@@ -28,6 +29,8 @@ type Getter interface {
 type Poster interface {
 	// Post will store data, and return an ID that can be used to retrieve it later
 	Post(ctx context.Context, data []byte) (ID, error)
+	MaxSize() int
+	Hash(x []byte) ID
 }
 
 // Adder defines the Add method
@@ -70,9 +73,6 @@ type Store interface {
 	Deleter
 	Lister
 	Exister
-
-	Hash(data []byte) ID
-	MaxSize() int
 }
 
 var (

@@ -33,6 +33,9 @@ func New(x posixfs.FS, hashFunc cadata.HashFunc, maxSize int) FSStore {
 }
 
 func (s FSStore) Post(ctx context.Context, data []byte) (cadata.ID, error) {
+	if len(data) > s.MaxSize() {
+		return cadata.ID{}, cadata.ErrTooLarge
+	}
 	id := s.hashFunc(data)
 	staging := stagingPathForID(id)
 	final := pathForID(id)

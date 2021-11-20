@@ -40,6 +40,15 @@ func TestStore(t *testing.T, newStore func(t testing.TB) Store) {
 		actual := get(t, s, id)
 		require.Equal(t, testData, actual)
 	})
+	t.Run("MaxSize", func(t *testing.T) {
+		s := newStore(t)
+		data := make([]byte, s.MaxSize())
+		post(t, s, data)
+		dataTooBig := make([]byte, s.MaxSize()+1)
+		ctx := context.Background()
+		_, err := s.Post(ctx, dataTooBig)
+		require.ErrorIs(t, err, cadata.ErrTooLarge)
+	})
 }
 
 func get(t *testing.T, s Store, id ID) []byte {

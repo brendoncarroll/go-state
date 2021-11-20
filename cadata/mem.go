@@ -24,6 +24,9 @@ func NewMem(hf HashFunc, maxSize int) *MemStore {
 }
 
 func (s *MemStore) Post(ctx context.Context, data []byte) (ID, error) {
+	if len(data) > s.MaxSize() {
+		return ID{}, ErrTooLarge
+	}
 	data = append([]byte{}, data...)
 	id := s.hash(data)
 	s.m.Store(id, data)
