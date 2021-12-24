@@ -17,7 +17,7 @@ func ForEach(ctx context.Context, s Lister, fn func(ID) error) error {
 
 // ForEachRange calls fn with every ID in the range
 func ForEachRange(ctx context.Context, s Lister, r state.ByteRange, fn func(ID) error) error {
-	return forEach(ctx, s, r.First, r.Last, fn)
+	return forEach(ctx, s, r.Begin, r.End, fn)
 }
 
 func forEach(ctx context.Context, s Lister, first, last []byte, fn func(ID) error) error {
@@ -115,8 +115,10 @@ func DeleteAll(ctx context.Context, s Store) error {
 	})
 }
 
-func GetF(ctx context.Context, s Getter, id ID, fn func([]byte)error)error {
-	if getF, ok := s.(interface{GetF(context.Context, ID, func([]byte)error) error }); ok {
+func GetF(ctx context.Context, s Getter, id ID, fn func([]byte) error) error {
+	if getF, ok := s.(interface {
+		GetF(context.Context, ID, func([]byte) error) error
+	}); ok {
 		return getF.GetF(ctx, id, fn)
 	}
 	data, err := GetBytes(ctx, s, id)
@@ -131,4 +133,3 @@ func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
 	n, err := s.Get(ctx, id, buf)
 	return buf[:n], err
 }
-

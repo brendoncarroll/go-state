@@ -48,7 +48,7 @@ func Apply(ctx context.Context, cell Cell, fn func([]byte) ([]byte, error)) erro
 			return nil
 		}
 	}
-	return errors.New("cell CAS attempts maxed out")
+	return ErrCASMaxAttempts{}
 }
 
 // GetBytes is a convenience function that allocates memory, fills it with the contents of cell and returns it
@@ -69,4 +69,14 @@ func IsErrTooLarge(err error) bool {
 
 func (e ErrTooLarge) Error() string {
 	return "data too large for cell"
+}
+
+type ErrCASMaxAttempts struct{}
+
+func IsErrCASMaxAttempts(err error) bool {
+	return errors.Is(err, ErrCASMaxAttempts{})
+}
+
+func (e ErrCASMaxAttempts) Error() string {
+	return "cell CAS attempts maxed out"
 }
