@@ -12,11 +12,11 @@ import (
 
 // ForEach calls fn once with every ID in s
 func ForEach(ctx context.Context, s Lister, fn func(ID) error) error {
-	return ForEachRange(ctx, s, state.ByteRange{}, fn)
+	return ForEachRange(ctx, s, state.ByteSpan{}, fn)
 }
 
 // ForEachRange calls fn with every ID in the range
-func ForEachRange(ctx context.Context, s Lister, r state.ByteRange, fn func(ID) error) error {
+func ForEachRange(ctx context.Context, s Lister, r state.ByteSpan, fn func(ID) error) error {
 	return forEach(ctx, s, r.Begin, r.End, fn)
 }
 
