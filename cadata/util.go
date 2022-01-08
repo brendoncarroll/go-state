@@ -54,7 +54,7 @@ func Copy(ctx context.Context, dst Poster, src Getter, id ID) error {
 			return err
 		}
 	}
-	buf := make([]byte, DefaultMaxSize)
+	buf := make([]byte, src.MaxSize())
 	n, err := src.Get(ctx, id, buf)
 	if err != nil {
 		return err
