@@ -133,3 +133,15 @@ func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
 	n, err := s.Get(ctx, id, buf)
 	return buf[:n], err
 }
+
+func Exists(ctx context.Context, s Lister, id ID) (bool, error) {
+	if exister, ok := s.(Exister); ok {
+		return exister.Exists(ctx, id)
+	}
+	ids := [1]ID{}
+	n, err := s.List(ctx, id[:], ids[:])
+	if err != nil && !errors.Is(err, ErrEndOfList) {
+		return false, err
+	}
+	return n > 0, nil
+}

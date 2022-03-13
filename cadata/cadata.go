@@ -72,7 +72,6 @@ type Store interface {
 	Getter
 	Deleter
 	Lister
-	Exister
 }
 
 var (

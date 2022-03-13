@@ -67,7 +67,7 @@ func post(t *testing.T, s Store, data []byte) ID {
 
 func exists(t *testing.T, s Store, id ID) bool {
 	ctx := context.Background()
-	yes, err := s.Exists(ctx, id)
+	yes, err := cadata.Exists(ctx, s, id)
 	require.NoError(t, err)
 	return yes
 }
