@@ -143,5 +143,8 @@ func Exists(ctx context.Context, s Lister, id ID) (bool, error) {
 	if err != nil && !errors.Is(err, ErrEndOfList) {
 		return false, err
 	}
-	return n > 0, nil
+	if n < 1 {
+		return false, nil
+	}
+	return ids[0] == id, nil
 }
