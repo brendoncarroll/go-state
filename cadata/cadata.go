@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/brendoncarroll/go-state"
 	"lukechampine.com/blake3"
 )
 
@@ -77,7 +78,7 @@ type Store interface {
 var (
 	ErrNotFound  = errors.New("no data found with that ID")
 	ErrTooLarge  = errors.New("data is too large for store")
-	ErrEndOfList = errors.New("end of list")
+	ErrEndOfList = state.EndOfList
 	ErrBadData   = errors.New("data does not match ID")
 )
 
