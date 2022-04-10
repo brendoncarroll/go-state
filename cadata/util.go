@@ -1,7 +1,6 @@
 package cadata
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"runtime"
@@ -16,35 +15,12 @@ func ForEach(ctx context.Context, s Lister, fn func(ID) error) error {
 }
 
 // ForEachSpan calls fn with every ID in the range
-func ForEachSpan(ctx context.Context, s Lister, r state.ByteSpan, fn func(ID) error) error {
-	return forEach(ctx, s, r.Begin, r.End, fn)
-}
-
-func forEach(ctx context.Context, s Lister, first, last []byte, fn func(ID) error) error {
-	first = append([]byte{}, first...)
-	ids := make([]ID, 1<<10)
-	for {
-		n, err := s.List(ctx, first, ids)
-		if err != nil && err != ErrEndOfList {
-			return err
-		}
-		for i := 0; i < n; i++ {
-			if last != nil && bytes.Compare(ids[i][:], last) >= 0 {
-				return nil
-			}
-			if err := fn(ids[i]); err != nil {
-				return err
-			}
-		}
-		if err == ErrEndOfList {
-			return nil
-		}
-		if n > 0 {
-			first = first[:0]
-			first = append(first, ids[n-1][:]...)
-			first = append(first, 0x00)
-		}
+func ForEachSpan(ctx context.Context, s Lister, span state.ByteSpan, fn func(ID) error) error {
+	span2 := state.Span[ID]{Begin: IDFromBytes(span.Begin)}
+	if span.End != nil {
+		span2.End = IDFromBytes(span.End)
 	}
+	return state.ForEachSpan[ID](ctx, s, span2, fn)
 }
 
 // Copy copies the data referenced by id from src to dst.
@@ -134,17 +110,6 @@ func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
 	return buf[:n], err
 }
 
-func Exists(ctx context.Context, s Lister, id ID) (bool, error) {
-	if exister, ok := s.(Exister); ok {
-		return exister.Exists(ctx, id)
-	}
-	ids := [1]ID{}
-	n, err := s.List(ctx, id[:], ids[:])
-	if err != nil && !errors.Is(err, ErrEndOfList) {
-		return false, err
-	}
-	if n < 1 {
-		return false, nil
-	}
-	return ids[0] == id, nil
+func Exists(ctx context.Context, x Lister, id ID) (bool, error) {
+	return state.Exists[ID](ctx, x, id)
 }

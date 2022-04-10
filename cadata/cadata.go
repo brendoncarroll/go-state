@@ -51,7 +51,7 @@ type Deleter interface {
 type Lister interface {
 	// List reads IDs from the store, in asceding order into ids.
 	// All the ids will be >= first.
-	List(ctx context.Context, first []byte, ids []ID) (int, error)
+	List(ctx context.Context, first ID, ids []ID) (int, error)
 }
 
 // Exister defines the Exists method

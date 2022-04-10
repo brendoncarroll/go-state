@@ -3,10 +3,7 @@ package state
 import (
 	"context"
 	"errors"
-	"sort"
-	"sync"
 
-	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -51,6 +48,12 @@ type Lister[K comparable] interface {
 	// List copies keys from the store into the slice entries
 	// and returns the number copied.
 	List(ctx context.Context, first K, ks []K) (int, error)
+}
+
+// Exister has the Exists method
+type Exister[K comparable] interface {
+	// Exists returns true if the store contains an entry for k and false otherwise.
+	Exists(ctx context.Context, k K) (bool, error)
 }
 
 // Getter has the Get method
@@ -120,7 +123,7 @@ func ForEachSpan[K comparable](ctx context.Context, x Lister[K], span Span[K], f
 				return nil
 			}
 			if n == 0 {
-				return errors.New("List returned 0 without io.EOF")
+				return errors.New("List returned 0 without EndOfList")
 			}
 		}
 	})
@@ -135,62 +138,25 @@ func ForEachSpan[K comparable](ctx context.Context, x Lister[K], span Span[K], f
 	return eg.Wait()
 }
 
-type MemKVStore[K comparable, V any] struct {
-	lt func(a, b K) bool
-	mu sync.RWMutex
-	m  map[K]V
-}
-
-func NewMemKVStore[K comparable, V any](lessThan func(a, b K) bool) KVStore[K, V] {
-	return &MemKVStore[K, V]{
-		lt: lessThan,
-		m:  make(map[K]V),
+// Exists checks if k exists in x.
+// Exists will check if s also implements Exister and use the Exists method.
+// If not it will call ExistsUsingList
+func Exists[K comparable](ctx context.Context, s Lister[K], k K) (bool, error) {
+	if exister, ok := s.(Exister[K]); ok {
+		return exister.Exists(ctx, k)
 	}
+	return ExistsUsingList(ctx, s, k)
 }
 
-func (s *MemKVStore[K, V]) Put(ctx context.Context, k K, v V) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.m[k] = v
-	return nil
-}
-
-func (s *MemKVStore[K, V]) Delete(ctx context.Context, k K) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.m, k)
-	return nil
-}
-
-func (s *MemKVStore[K, V]) Get(ctx context.Context, k K) (V, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	v, exists := s.m[k]
-	if !exists {
-		return v, ErrNotFound
+// ExistsUsingList implements Exists in terms of List
+func ExistsUsingList[K comparable](ctx context.Context, s Lister[K], k K) (bool, error) {
+	ks := [1]K{}
+	n, err := s.List(ctx, k, ks[:])
+	if err != nil && !errors.Is(err, EndOfList) {
+		return false, err
 	}
-	return v, nil
-}
-
-func (s *MemKVStore[K, V]) List(ctx context.Context, first K, buf []K) (n int, _ error) {
-	s.mu.RLock()
-	keys := maps.Keys(s.m)
-	s.mu.RUnlock()
-	sort.Slice(keys, func(i, j int) bool {
-		return s.lt(keys[i], keys[j])
-	})
-	for i := range keys {
-		if n == len(buf) {
-			break
-		}
-		if s.lt(keys[i], first) {
-			continue
-		}
-		buf[n] = keys[i]
-		n++
+	if n < 1 {
+		return false, nil
 	}
-	if n < len(buf) {
-		return n, EndOfList
-	}
-	return n, nil
+	return ks[0] == k, nil
 }

@@ -3,8 +3,10 @@ package cadata
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
-	"sync"
+
+	"github.com/brendoncarroll/go-state"
 )
 
 var _ Store = &MemStore{}
@@ -12,14 +14,16 @@ var _ Store = &MemStore{}
 type MemStore struct {
 	hash    HashFunc
 	maxSize int
-
-	m sync.Map
+	s       *state.MemKVStore[ID, []byte]
 }
 
 func NewMem(hf HashFunc, maxSize int) *MemStore {
 	return &MemStore{
 		maxSize: maxSize,
 		hash:    hf,
+		s: state.NewMemKVStore[ID, []byte](func(a, b ID) bool {
+			return bytes.Compare(a[:], b[:]) < 0
+		}),
 	}
 }
 
@@ -29,57 +33,40 @@ func (s *MemStore) Post(ctx context.Context, data []byte) (ID, error) {
 	}
 	data = append([]byte{}, data...)
 	id := s.hash(data)
-	s.m.Store(id, data)
+	if err := s.s.Put(ctx, id, data); err != nil {
+		return ID{}, err
+	}
 	return id, nil
 }
 
 func (s *MemStore) Get(ctx context.Context, id ID, buf []byte) (int, error) {
-	v, exists := s.m.Load(id)
-	if !exists {
-		return 0, ErrNotFound
+	data, err := s.s.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, state.ErrNotFound) {
+			err = ErrNotFound
+		}
+		return 0, err
 	}
-	data := v.([]byte)
 	if len(buf) < len(data) {
 		return 0, io.ErrShortBuffer
 	}
 	return copy(buf, data), nil
 }
 
-func (s *MemStore) List(ctx context.Context, first []byte, ids []ID) (n int, err error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	s.m.Range(func(k, v interface{}) bool {
-		id := k.(ID)
-		if bytes.Compare(id[:], first) < 0 {
-			return true
-		}
-		ids[n] = id
-		n++
-		return len(ids) < n
-	})
-	if n == 0 {
-		err = ErrEndOfList
-	}
-	return n, err
+func (s *MemStore) List(ctx context.Context, first ID, ids []ID) (n int, err error) {
+	return s.s.List(ctx, first, ids)
 }
 
 func (s *MemStore) Delete(ctx context.Context, id ID) error {
-	s.m.Delete(id)
-	return nil
+	return s.s.Delete(ctx, id)
 }
 
 func (s *MemStore) Exists(ctx context.Context, id ID) (bool, error) {
-	_, ok := s.m.Load(id)
-	return ok, nil
+	return state.Exists[ID](ctx, s.s, id)
 }
 
 func (s *MemStore) Len() (count int) {
-	s.m.Range(func(k, v interface{}) bool {
-		count++
-		return true
-	})
-	return count
+	return s.s.Len()
 }
 
 func (s *MemStore) Hash(x []byte) ID {
@@ -116,7 +103,7 @@ func (s Void) Exists(ctx context.Context, id ID) (bool, error) {
 	return false, nil
 }
 
-func (s Void) List(ctx context.Context, prefix []byte, ids []ID) (int, error) {
+func (s Void) List(ctx context.Context, first ID, ids []ID) (int, error) {
 	return 0, nil
 }
 
