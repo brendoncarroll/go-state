@@ -83,15 +83,15 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return err == ErrNotFound
+	return errors.Is(err, ErrNotFound)
 }
 
 func IsTooLarge(err error) bool {
-	return err == ErrTooLarge
+	return errors.Is(err, ErrTooLarge)
 }
 
 func IsEndOfList(err error) bool {
-	return err == ErrEndOfList
+	return errors.Is(err, ErrEndOfList)
 }
 
 // Check ensures that hf(data) == id and returns ErrBadData if it does not.
