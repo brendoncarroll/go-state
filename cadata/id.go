@@ -5,7 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+
+	"database/sql/driver"
 )
+
+var _ driver.Value = ID{}
 
 const IDSize = 32
 
@@ -63,4 +68,21 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	}
 	_, err := base64.RawURLEncoding.Decode(id[:], []byte(s))
 	return err
+}
+
+func (id *ID) Scan(x interface{}) error {
+	switch x := x.(type) {
+	case []byte:
+		if len(x) != 32 {
+			return fmt.Errorf("wrong length for cadata.ID HAVE: %d WANT: %d", len(x), IDSize)
+		}
+		*id = IDFromBytes(x)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan type %T", x)
+	}
+}
+
+func (id ID) Value() (driver.Value, error) {
+	return id[:], nil
 }
