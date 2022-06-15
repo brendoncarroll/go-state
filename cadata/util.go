@@ -9,18 +9,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ForEach calls fn once with every ID in s
-func ForEach(ctx context.Context, s Lister, fn func(ID) error) error {
-	return ForEachSpan(ctx, s, state.ByteSpan{}, fn)
-}
-
 // ForEachSpan calls fn with every ID in the range
-func ForEachSpan(ctx context.Context, s Lister, span state.ByteSpan, fn func(ID) error) error {
-	span2 := state.Span[ID]{Begin: IDFromBytes(span.Begin)}
-	if span.End != nil {
-		span2.End = IDFromBytes(span.End)
-	}
-	return state.ForEachSpan[ID](ctx, s, span2, fn)
+func ForEach(ctx context.Context, s Lister, span Span, fn func(ID) error) error {
+	return state.ForEach[ID](ctx, s, span, fn)
 }
 
 // Copy copies the data referenced by id from src to dst.
@@ -62,7 +53,7 @@ func CopyAllBasic(ctx context.Context, dst, src Store) error {
 	ch := make(chan ID)
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return ForEach(ctx, src, func(id ID) error {
+		return ForEach(ctx, src, Span{}, func(id ID) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -86,7 +77,7 @@ func CopyAllBasic(ctx context.Context, dst, src Store) error {
 
 // DeleteAll deletes all the data in s
 func DeleteAll(ctx context.Context, s Store) error {
-	return ForEach(ctx, s, func(id ID) error {
+	return ForEach(ctx, s, Span{}, func(id ID) error {
 		return s.Delete(ctx, id)
 	})
 }

@@ -74,7 +74,7 @@ func exists(t *testing.T, s Store, id ID) bool {
 
 func list(t *testing.T, s Store) (ret []cadata.ID) {
 	ctx := context.Background()
-	err := cadata.ForEach(ctx, s, func(id ID) error {
+	err := cadata.ForEach(ctx, s, cadata.Span{}, func(id ID) error {
 		ret = append(ret, id)
 		return nil
 	})

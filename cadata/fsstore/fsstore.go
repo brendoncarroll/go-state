@@ -94,7 +94,7 @@ func (s FSStore) Delete(ctx context.Context, id cadata.ID) error {
 	return posixfs.DeleteFile(ctx, s.fs, p)
 }
 
-func (s FSStore) List(ctx context.Context, first cadata.ID, ids []cadata.ID) (int, error) {
+func (s FSStore) List(ctx context.Context, span cadata.Span, ids []cadata.ID) (int, error) {
 	var n int
 	stopIter := errors.New("stopIter")
 	err := posixfs.WalkLeaves(ctx, s.fs, "", func(p string, dirEnt posixfs.DirEnt) error {
@@ -108,8 +108,14 @@ func (s FSStore) List(ctx context.Context, first cadata.ID, ids []cadata.ID) (in
 		if err != nil {
 			return err
 		}
-		if bytes.Compare(id[:], first[:]) < 0 {
+		c := span.Compare(id, func(a, b cadata.ID) int {
+			return bytes.Compare(a[:], b[:])
+		})
+		if c > 0 {
 			return nil
+		}
+		if c < 0 {
+			return stopIter
 		}
 		ids[n] = id
 		n++
@@ -120,9 +126,6 @@ func (s FSStore) List(ctx context.Context, first cadata.ID, ids []cadata.ID) (in
 	}
 	if err != nil {
 		return 0, err
-	}
-	if err == nil {
-		err = cadata.ErrEndOfList
 	}
 	return n, err
 }

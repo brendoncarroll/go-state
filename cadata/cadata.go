@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/brendoncarroll/go-state"
 	"lukechampine.com/blake3"
 )
 
@@ -50,8 +49,9 @@ type Deleter interface {
 // Lister defines the List method
 type Lister interface {
 	// List reads IDs from the store, in asceding order into ids.
-	// All the ids will be >= first.
-	List(ctx context.Context, first ID, ids []ID) (int, error)
+	// All the ids will be >= gteq, if it is not nil.
+	// All the ids will be < lt if it is not nil.
+	List(ctx context.Context, span Span, ids []ID) (int, error)
 }
 
 // Exister defines the Exists method
@@ -76,10 +76,9 @@ type Store interface {
 }
 
 var (
-	ErrNotFound  = errors.New("no data found with that ID")
-	ErrTooLarge  = errors.New("data is too large for store")
-	ErrEndOfList = state.EndOfList
-	ErrBadData   = errors.New("data does not match ID")
+	ErrNotFound = errors.New("no data found with that ID")
+	ErrTooLarge = errors.New("data is too large for store")
+	ErrBadData  = errors.New("data does not match ID")
 )
 
 func IsNotFound(err error) bool {
@@ -88,10 +87,6 @@ func IsNotFound(err error) bool {
 
 func IsTooLarge(err error) bool {
 	return errors.Is(err, ErrTooLarge)
-}
-
-func IsEndOfList(err error) bool {
-	return errors.Is(err, ErrEndOfList)
 }
 
 // Check ensures that hf(data) == id and returns ErrBadData if it does not.

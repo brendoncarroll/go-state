@@ -8,61 +8,63 @@ import (
 )
 
 var (
-	EndOfList   = errors.New("end of list")
 	ErrNotFound = errors.New("no entry found")
 )
 
 // Entry is a key value mapping.
-type Entry[K comparable, V any] struct {
+type Entry[K, V any] struct {
 	Key   K
 	Value V
 }
 
 // Poster has the Post method
-type Poster[K comparable, V any] interface {
+type Poster[K, V any] interface {
 	// Post creates an entry holding v and returns a key for it.
 	Post(ctx context.Context, v V) (K, error)
 }
 
 // Putter has the Put method
-type Putter[K comparable, V any] interface {
+type Putter[K, V any] interface {
 	// Put replaces data at key with value, or creates a mapping from k -> v
 	// if it does not exist.
 	Put(ctx context.Context, k K, v V) error
 }
 
 // Deleter has the Delete method
-type Deleter[K comparable] interface {
+type Deleter[K any] interface {
 	// Delete removes the data at k
 	Delete(ctx context.Context, k K) error
 }
 
 // Updater has the Update method
-type Updater[K comparable, V any] interface {
+type Updater[K, V any] interface {
 	// Update applies an update to a key serially with other calls to update
 	Update(ctx context.Context, k K, fn func(v *V) (*V, error)) error
 }
 
 // Lister has the List method.
-type Lister[K comparable] interface {
+type Lister[K any] interface {
 	// List copies keys from the store into the slice entries
 	// and returns the number copied.
-	List(ctx context.Context, first K, ks []K) (int, error)
+	// List signals the end of the list by returning (0, nil)
+	// List may fill ks with fewer than len(ks), but will always return > 0, unless it is the end.
+	// List will only return keys which are contained by in the span.
+	List(ctx context.Context, span Span[K], ks []K) (int, error)
 }
 
 // Exister has the Exists method
-type Exister[K comparable] interface {
+type Exister[K any] interface {
 	// Exists returns true if the store contains an entry for k and false otherwise.
 	Exists(ctx context.Context, k K) (bool, error)
 }
 
 // Getter has the Get method
-type Getter[K comparable, V any] interface {
+type Getter[K, V any] interface {
 	Get(ctx context.Context, k K) (V, error)
 }
 
 // KVStore is an ordered Key-Value Store
-type KVStore[K comparable, V any] interface {
+type KVStore[K, V any] interface {
 	Getter[K, V]
 	Putter[K, V]
 	Deleter[K]
@@ -70,31 +72,25 @@ type KVStore[K comparable, V any] interface {
 }
 
 // ReadOnlyKVStore is a KVStore which does not allow mutating data.
-type ReadOnlyKVStore[K comparable, V any] interface {
+type ReadOnlyKVStore[K, V any] interface {
 	Getter[K, V]
 	Lister[K]
 }
 
 // KVStoreTx is a transactional key value store
-type KVStoreTx[K comparable, V any] interface {
+type KVStoreTx[K, V any] interface {
 	// View calls fn with a ReadOnly view of the store
-	// Any operations on the store are either all applied if fn and View both return nil,
-	// or all reverted if either fn or View returns a non-nil error.
 	View(ctx context.Context, fn func(tx ReadOnlyKVStore[K, V]) error) error
-	// Modify
+	// Modify calls fn with a mutable view of the store.
+	// Any operations on the store are either all applied if fn and Modify both return nil,
+	// or all reverted if either fn or View returns a non-nil error.
 	Modify(ctx context.Context, fn func(tx KVStore[K, V]) error) error
 }
 
-// ForEach calls fn for each k in the listable KVStore x.
-// ForEach calls ForEachSpan internally with an all-including Span.
-func ForEach[K comparable](ctx context.Context, x Lister[K], fn func(K) error) error {
-	return ForEachSpan(ctx, x, Span[K]{}, fn)
-}
-
-// ForEachSpan calls fn with all the keys in x contained in span.
+// ForEach calls fn with all the keys in x constrained by gteq, and lt if they exist.
 // `fn` may be called in another go rountine during the execution of ForEachSpan.
 // `fn` will not be called after ForEachSpan returns.
-func ForEachSpan[K comparable](ctx context.Context, x Lister[K], span Span[K], fn func(K) error) error {
+func ForEach[K any](ctx context.Context, x Lister[K], span Span[K], fn func(K) error) error {
 	const batchSize = 16
 	const chanSize = 32
 
@@ -103,28 +99,23 @@ func ForEachSpan[K comparable](ctx context.Context, x Lister[K], span Span[K], f
 	eg.Go(func() error {
 		defer close(ch)
 		buf := make([]K, batchSize)
-		first := span.Begin
 		for i := 0; ; i++ {
-			n, err := x.List(ctx, first, buf)
-			if err != nil && !errors.Is(err, EndOfList) {
+			n, err := x.List(ctx, span, buf)
+			if err != nil {
 				return err
 			}
-			for _, k := range buf[:n] {
-				if i > 0 && k == first {
-					continue
-				}
+			items := buf[:n]
+			if len(items) == 0 {
+				return nil
+			}
+			for _, k := range items {
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
 				case ch <- k:
 				}
 			}
-			if errors.Is(err, EndOfList) {
-				return nil
-			}
-			if n == 0 {
-				return errors.New("List returned 0 without EndOfList")
-			}
+			span = span.WithLowerExcl(items[len(items)-1])
 		}
 	})
 	eg.Go(func() error {
@@ -141,7 +132,7 @@ func ForEachSpan[K comparable](ctx context.Context, x Lister[K], span Span[K], f
 // Exists checks if k exists in x.
 // Exists will check if s also implements Exister and use the Exists method.
 // If not it will call ExistsUsingList
-func Exists[K comparable](ctx context.Context, s Lister[K], k K) (bool, error) {
+func Exists[K any](ctx context.Context, s Lister[K], k K) (bool, error) {
 	if exister, ok := s.(Exister[K]); ok {
 		return exister.Exists(ctx, k)
 	}
@@ -149,14 +140,12 @@ func Exists[K comparable](ctx context.Context, s Lister[K], k K) (bool, error) {
 }
 
 // ExistsUsingList implements Exists in terms of List
-func ExistsUsingList[K comparable](ctx context.Context, s Lister[K], k K) (bool, error) {
+func ExistsUsingList[K any](ctx context.Context, s Lister[K], k K) (bool, error) {
+	span := TotalSpan[K]().WithLowerIncl(k).WithUpperIncl(k)
 	ks := [1]K{}
-	n, err := s.List(ctx, k, ks[:])
-	if err != nil && !errors.Is(err, EndOfList) {
+	n, err := s.List(ctx, span, ks[:])
+	if err != nil {
 		return false, err
 	}
-	if n < 1 {
-		return false, nil
-	}
-	return ks[0] == k, nil
+	return n > 0, nil
 }

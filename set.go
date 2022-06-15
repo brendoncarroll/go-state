@@ -19,9 +19,9 @@ type memSet[K comparable] struct {
 }
 
 // NewMemSet returns a Set using memory for storage.
-func NewMemSet[K comparable](lessThan func(a, b K) bool) Set[K] {
+func NewMemSet[K comparable](cmp func(a, b K) int) Set[K] {
 	return memSet[K]{
-		MemKVStore: NewMemKVStore[K, struct{}](lessThan),
+		MemKVStore: NewMemKVStore[K, struct{}](cmp),
 	}
 }
 

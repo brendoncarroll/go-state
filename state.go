@@ -34,14 +34,13 @@ func (s ByteSpan) AllGt(x []byte) bool {
 	return bytes.Compare(s.Begin, x) > 0
 }
 
-// Span represents a sorted span of values of type T.
-// Elements of the span will all be >= Begin and < End.
-//
-// When End is the zero value of type T, the Span should be considered to have no upper bound.
-// Constructing an empty Span is much less useful than a total span.
-// An empty Span can be constructed with a non-zero Begin and End where Begin == End.
-// Spans where End < Begin are considered invalid.
-type Span[T comparable] struct {
-	Begin T
-	End   T
+func (s ByteSpan) ToSpan() Span[[]byte] {
+	span := TotalSpan[[]byte]()
+	if s.Begin != nil {
+		span = span.WithLowerIncl(s.Begin)
+	}
+	if s.End != nil {
+		span = span.WithUpperExcl(s.End)
+	}
+	return span
 }

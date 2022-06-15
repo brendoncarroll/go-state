@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"database/sql/driver"
+
+	"github.com/brendoncarroll/go-state"
 )
 
 var _ driver.Value = ID{}
@@ -86,3 +88,6 @@ func (id *ID) Scan(x interface{}) error {
 func (id ID) Value() (driver.Value, error) {
 	return id[:], nil
 }
+
+// Span is a Span of ID's
+type Span = state.Span[ID]

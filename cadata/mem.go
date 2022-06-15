@@ -21,8 +21,8 @@ func NewMem(hf HashFunc, maxSize int) *MemStore {
 	return &MemStore{
 		maxSize: maxSize,
 		hash:    hf,
-		s: state.NewMemKVStore[ID, []byte](func(a, b ID) bool {
-			return bytes.Compare(a[:], b[:]) < 0
+		s: state.NewMemKVStore[ID, []byte](func(a, b ID) int {
+			return bytes.Compare(a[:], b[:])
 		}),
 	}
 }
@@ -53,8 +53,8 @@ func (s *MemStore) Get(ctx context.Context, id ID, buf []byte) (int, error) {
 	return copy(buf, data), nil
 }
 
-func (s *MemStore) List(ctx context.Context, first ID, ids []ID) (n int, err error) {
-	return s.s.List(ctx, first, ids)
+func (s *MemStore) List(ctx context.Context, span Span, ids []ID) (n int, err error) {
+	return s.s.List(ctx, span, ids)
 }
 
 func (s *MemStore) Delete(ctx context.Context, id ID) error {
@@ -103,7 +103,7 @@ func (s Void) Exists(ctx context.Context, id ID) (bool, error) {
 	return false, nil
 }
 
-func (s Void) List(ctx context.Context, first ID, ids []ID) (int, error) {
+func (s Void) List(ctx context.Context, span Span, ids []ID) (int, error) {
 	return 0, nil
 }
 
