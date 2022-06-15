@@ -83,14 +83,14 @@ func (s Span[T]) IsDesc() bool {
 	return false
 }
 
-// IncludesUpper returns true if the upper bound is inclusive
-func (s Span[T]) IncludesUpper() bool {
-	return s.mode&spanModeIncludesUpper > 0
-}
-
-// IncludesLower returns true if the lower bound is inclusive
+// IncludesLower returns true if there is a lower bound and it is inclusive
 func (s Span[T]) IncludesLower() bool {
 	return s.mode&spanModeIncludesLower > 0
+}
+
+// IncludesUpper returns true if there is an upper bound and it is inclusive
+func (s Span[T]) IncludesUpper() bool {
+	return s.mode&spanModeIncludesUpper > 0
 }
 
 // Compare determines if an element T is below the Span, in the Span or above the Span.

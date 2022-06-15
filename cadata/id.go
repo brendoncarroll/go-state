@@ -47,10 +47,10 @@ func (id *ID) UnmarshalBase64(data []byte) error {
 }
 
 func (a ID) Equals(b ID) bool {
-	return a.Cmp(b) == 0
+	return a.Compare(b) == 0
 }
 
-func (a ID) Cmp(b ID) int {
+func (a ID) Compare(b ID) int {
 	return bytes.Compare(a[:], b[:])
 }
 
@@ -87,6 +87,17 @@ func (id *ID) Scan(x interface{}) error {
 
 func (id ID) Value() (driver.Value, error) {
 	return id[:], nil
+}
+
+// Successor returns the ID immediately after this ID
+func (id ID) Successor() ID {
+	for i := len(id) - 1; i >= 0; i-- {
+		id[i]++
+		if id[i] != 0 {
+			break
+		}
+	}
+	return id
 }
 
 // Span is a Span of ID's

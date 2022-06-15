@@ -147,7 +147,10 @@ func putEntry[K, V any, S []Entry[K, V]](s S, k K, v V, cmp func(a, b K) int) S 
 	if ok {
 		s[i] = x
 	} else {
-		s = slices.Insert(s, i, x)
+		s = append(s, x)
+		for j := len(s) - 1; j > i; j-- {
+			s[j-1], s[j] = s[j], s[j-1]
+		}
 	}
 	return s
 }
