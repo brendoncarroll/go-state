@@ -102,3 +102,30 @@ func (id ID) Successor() ID {
 
 // Span is a Span of ID's
 type Span = state.Span[ID]
+
+// BeginFromSpan returns the ID which begins the span.
+// It will be lteq every other ID in the Span.
+func BeginFromSpan(x Span) ID {
+	lower, ok := x.LowerBound()
+	if !ok {
+		return ID{}
+	}
+	if x.IncludesLower() {
+		return lower
+	}
+	return lower.Successor()
+}
+
+// EndFromSpan returns the cadata.ID which is greater than ever ID in the span, and true.
+// Or it returns the zero ID and false if no such ID exists.
+func EndFromSpan(x Span) (ID, bool) {
+	upper, ok := x.UpperBound()
+	if !ok {
+		return ID{}, false
+	}
+	if !x.IncludesUpper() {
+		return upper, true
+	}
+	suc := upper.Successor()
+	return suc, suc.IsZero()
+}
