@@ -1,5 +1,10 @@
 package state
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Span is a specification for iteration through values of type T.
 // It includes begin and end bounds, which can be inclusive or exclusive of the bounding value.
 // The empty Span is equivalent to TotalSpan() and includes all elements of type T.
@@ -121,4 +126,30 @@ func (s Span[T]) Compare(x T, cmp func(a, b T) int) int {
 // Contains returns true if the span contains x.
 func (s Span[T]) Contains(x T, cmp func(a, b T) int) bool {
 	return s.Compare(x, cmp) == 0
+}
+
+func (s Span[T]) String() string {
+	sb := &strings.Builder{}
+	if lower, ok := s.LowerBound(); ok {
+		if s.IncludesLower() {
+			sb.WriteString("[")
+		} else {
+			sb.WriteString("(")
+		}
+		fmt.Fprint(sb, lower)
+	} else {
+		sb.WriteString("(min")
+	}
+	sb.WriteString(", ")
+	if upper, ok := s.UpperBound(); ok {
+		fmt.Fprint(sb, upper)
+		if s.IncludesUpper() {
+			sb.WriteString("]")
+		} else {
+			sb.WriteString(")")
+		}
+	} else {
+		sb.WriteString("max)")
+	}
+	return sb.String()
 }

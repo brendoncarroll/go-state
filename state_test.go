@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,4 +31,23 @@ func TestByteSpan(t *testing.T) {
 		assert.True(t, span.AllGt([]byte("a")))
 		assert.False(t, span.AllGt([]byte("b")))
 	})
+}
+
+func ExampleSpanString() {
+	fmt.Println(Span[int]{})
+
+	a := Span[int]{}.WithLowerIncl(-5)
+	fmt.Println(a)
+
+	b := Span[int]{}.WithUpperExcl(10)
+	fmt.Println(b)
+
+	c := Span[int]{}.WithLowerIncl(2).WithUpperExcl(20)
+	fmt.Println(c)
+
+	// Output:
+	// (min, max)
+	// [-5, max)
+	// (min, 10)
+	// [2, 20)
 }
