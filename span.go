@@ -25,6 +25,11 @@ func TotalSpan[T any]() Span[T] {
 	return Span[T]{}
 }
 
+// PointSpan returns a Span that contains 1 element.
+func PointSpan[T any](x T) Span[T] {
+	return Span[T]{}.WithLowerIncl(x).WithUpperIncl(x)
+}
+
 // WithLowerIncl returns a copy of s with an inclusive lower bound
 func (s Span[T]) WithLowerIncl(x T) Span[T] {
 	s.lower = x

@@ -7,9 +7,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/brendoncarroll/go-state"
 	"github.com/pkg/errors"
 )
 
@@ -119,6 +122,7 @@ func WalkLeaves(ctx context.Context, x FS, p string, fn func(string, DirEnt) err
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	finfo, err := f.Stat()
 	if err != nil {
 		return err
@@ -140,6 +144,57 @@ func WalkLeaves(ctx context.Context, x FS, p string, fn func(string, DirEnt) err
 				return err
 			}
 		} else {
+			if err := fn(p2, dirEnt); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// WalkLeavesSpan walks the leaves in x which are contained in the span.
+// WalkLeavesSpan emits paths in sorted order.
+func WalkLeavesSpan(ctx context.Context, x FS, p string, span state.Span[string], fn func(string, DirEnt) error) error {
+	f, err := x.OpenFile(p, O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	finfo, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !finfo.IsDir() {
+		if !span.Contains(p, strings.Compare) {
+			return nil
+		}
+		return fn(p, DirEnt{Name: finfo.Name(), Mode: finfo.Mode()})
+	}
+	dirEnts, err := f.ReadDir(0)
+	if err != nil {
+		return err
+	}
+	sort.Slice(dirEnts, func(i, j int) bool {
+		return dirEnts[i].Name < dirEnts[j].Name
+	})
+	for _, dirEnt := range dirEnts {
+		p2 := path.Join(p, dirEnt.Name)
+		if dirEnt.Mode.IsDir() {
+			if err := checkContext(ctx); err != nil {
+				return err
+			}
+			begin := p2 + "/"
+			end := prefixEnd(begin)
+			if span.Compare(begin, strings.Compare) < 0 || span.Compare(end, strings.Compare) > 0 {
+				continue
+			}
+			if err := WalkLeavesSpan(ctx, x, p2, span, fn); err != nil {
+				return err
+			}
+		} else {
+			if !span.Contains(p2, strings.Compare) {
+				continue
+			}
 			if err := fn(p2, dirEnt); err != nil {
 				return err
 			}
@@ -186,4 +241,21 @@ func MkdirAll(x FS, p string, perm FileMode) error {
 		return nil
 	}
 	return err
+}
+
+func prefixEnd(prefix string) string {
+	if len(prefix) == 0 {
+		return ""
+	}
+	var end []byte
+	for i := len(prefix) - 1; i >= 0; i-- {
+		c := prefix[i]
+		if c < 0xff {
+			end = make([]byte, i+1)
+			copy(end, prefix)
+			end[i] = c + 1
+			break
+		}
+	}
+	return string(end)
 }

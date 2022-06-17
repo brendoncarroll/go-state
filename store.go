@@ -141,7 +141,7 @@ func Exists[K any](ctx context.Context, s Lister[K], k K) (bool, error) {
 
 // ExistsUsingList implements Exists in terms of List
 func ExistsUsingList[K any](ctx context.Context, s Lister[K], k K) (bool, error) {
-	span := TotalSpan[K]().WithLowerIncl(k).WithUpperIncl(k)
+	span := PointSpan(k)
 	ks := [1]K{}
 	n, err := s.List(ctx, span, ks[:])
 	if err != nil {

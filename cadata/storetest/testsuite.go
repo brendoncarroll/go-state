@@ -2,6 +2,7 @@ package storetest
 
 import (
 	"context"
+	mrand "math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -26,12 +27,15 @@ func TestStore(t *testing.T, newStore func(t testing.TB) Store) {
 		dataOut := get(t, s, id2)
 		require.Equal(t, testData, dataOut)
 	})
-	t.Run("TestList", func(t *testing.T) {
+	t.Run("List", func(t *testing.T) {
 		s := newStore(t)
-		testData := make([]byte, 1024)
-		post(t, s, testData)
+		buf := make([]byte, 1024)
+		for i := 0; i < 100; i++ {
+			readRandom(i, buf)
+			post(t, s, buf)
+		}
 		ids := list(t, s)
-		require.Len(t, ids, 1)
+		require.Len(t, ids, 100)
 	})
 	t.Run("RecallOne", func(t *testing.T) {
 		s := newStore(t)
@@ -80,4 +84,9 @@ func list(t *testing.T, s Store) (ret []cadata.ID) {
 	})
 	require.NoError(t, err)
 	return ret
+}
+
+func readRandom(i int, buf []byte) {
+	rng := mrand.New(mrand.NewSource(int64(i)))
+	rng.Read(buf)
 }

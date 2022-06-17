@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/brendoncarroll/go-state"
 	"github.com/brendoncarroll/go-state/cadata"
 	"github.com/brendoncarroll/go-state/posixfs"
 	"github.com/pkg/errors"
@@ -95,9 +96,24 @@ func (s FSStore) Delete(ctx context.Context, id cadata.ID) error {
 }
 
 func (s FSStore) List(ctx context.Context, span cadata.Span, ids []cadata.ID) (int, error) {
+	span2 := state.Span[string]{}
+	if lower, ok := span.LowerBound(); ok {
+		if span.IncludesLower() {
+			span2 = span2.WithLowerIncl(pathForID(lower))
+		} else {
+			span2 = span2.WithLowerExcl(pathForID(lower))
+		}
+	}
+	if upper, ok := span.UpperBound(); ok {
+		if span.IncludesUpper() {
+			span2 = span2.WithUpperIncl(pathForID(upper))
+		} else {
+			span2 = span2.WithUpperExcl(pathForID(upper))
+		}
+	}
 	var n int
 	stopIter := errors.New("stopIter")
-	err := posixfs.WalkLeaves(ctx, s.fs, "", func(p string, dirEnt posixfs.DirEnt) error {
+	err := posixfs.WalkLeavesSpan(ctx, s.fs, "", span2, func(p string, _ posixfs.DirEnt) error {
 		if strings.HasPrefix(p, "tmp/") {
 			return nil
 		}
@@ -108,24 +124,12 @@ func (s FSStore) List(ctx context.Context, span cadata.Span, ids []cadata.ID) (i
 		if err != nil {
 			return err
 		}
-		c := span.Compare(id, func(a, b cadata.ID) int {
-			return bytes.Compare(a[:], b[:])
-		})
-		if c > 0 {
-			return nil
-		}
-		if c < 0 {
-			return stopIter
-		}
 		ids[n] = id
 		n++
 		return nil
 	})
 	if err == stopIter {
-		return n, nil
-	}
-	if err != nil {
-		return 0, err
+		err = nil
 	}
 	return n, err
 }
@@ -143,17 +147,18 @@ func (s FSStore) ensureDirForPath(p string) error {
 	return posixfs.MkdirAll(s.fs, dirPath, 0o755)
 }
 
-var enc = base64.RawURLEncoding
+var enc = base64.NewEncoding(cadata.Base64Alphabet).WithPadding(base64.NoPadding)
 
 func pathForID(id cadata.ID) string {
 	p := enc.EncodeToString(id[:])
-	return path.Join(p[:1], p[1:])
+	return path.Join(p[:2], p[2:])
 }
 
 func parsePath(p string) (cadata.ID, error) {
+	const numParts = 2
 	p = strings.Trim(p, "/")
-	parts := strings.SplitN(p, "/", 2)
-	if len(parts) != 2 {
+	parts := strings.SplitN(p, "/", numParts)
+	if len(parts) != numParts {
 		return cadata.ID{}, errors.Errorf("could not parse path %q", p)
 	}
 	data, err := enc.DecodeString(parts[0] + parts[1])

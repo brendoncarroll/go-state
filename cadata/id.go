@@ -14,7 +14,12 @@ import (
 
 var _ driver.Value = ID{}
 
-const IDSize = 32
+const (
+	IDSize = 32
+	// Base64Alphabet is used when encoding IDs as base64 strings.
+	// It is a URL and filepath safe encoding, which maintains ordering.
+	Base64Alphabet = "-0123456789" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "_" + "abcdefghijklmnopqrstuvwxyz"
+)
 
 // ID identifies a particular piece of data
 type ID [IDSize]byte
@@ -25,18 +30,22 @@ func IDFromBytes(x []byte) ID {
 	return id
 }
 
+var enc = base64.NewEncoding(Base64Alphabet).WithPadding(base64.NoPadding)
+
 func (id ID) String() string {
-	return base64.RawURLEncoding.EncodeToString(id[:])
+	return enc.EncodeToString(id[:])
 }
 
+// MarshalBase64 encodes ID using Base64Alphabet
 func (id ID) MarshalBase64() ([]byte, error) {
-	buf := make([]byte, base64.RawURLEncoding.EncodedLen(len(id)))
-	base64.RawURLEncoding.Encode(buf, id[:])
+	buf := make([]byte, enc.EncodedLen(len(id)))
+	enc.Encode(buf, id[:])
 	return buf, nil
 }
 
+// UnmarshalBase64 decodes data into the ID using Base64Alphabet
 func (id *ID) UnmarshalBase64(data []byte) error {
-	n, err := base64.RawURLEncoding.Decode(id[:], data)
+	n, err := enc.Decode(id[:], data)
 	if err != nil {
 		return err
 	}
@@ -59,7 +68,7 @@ func (id ID) IsZero() bool {
 }
 
 func (id ID) MarshalJSON() ([]byte, error) {
-	s := base64.RawURLEncoding.EncodeToString(id[:])
+	s := enc.EncodeToString(id[:])
 	return json.Marshal(s)
 }
 
@@ -68,7 +77,7 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	_, err := base64.RawURLEncoding.Decode(id[:], []byte(s))
+	_, err := enc.Decode(id[:], []byte(s))
 	return err
 }
 
