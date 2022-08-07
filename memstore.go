@@ -4,19 +4,22 @@ import (
 	"context"
 	"sync"
 
+	"github.com/google/btree"
 	"golang.org/x/exp/slices"
 )
 
 type MemKVStore[K, V any] struct {
-	cmp     func(a, b K) int
-	mu      sync.RWMutex
-	entries []Entry[K, V]
+	cmp  func(a, b K) int
+	mu   sync.RWMutex
+	tree btree.BTreeG[Entry[K, V]]
 }
 
 func NewMemKVStore[K, V any](cmp func(a, b K) int) *MemKVStore[K, V] {
 	return &MemKVStore[K, V]{
-		cmp:     cmp,
-		entries: make([]Entry[K, V], 0),
+		cmp: cmp,
+		tree: *btree.NewG[Entry[K, V]](2, func(a, b Entry[K, V]) bool {
+			return cmp(a.Key, b.Key) < 0
+		}),
 	}
 }
 
@@ -51,14 +54,14 @@ func (s *MemKVStore[K, V]) List(ctx context.Context, span Span[K], buf []K) (n i
 func (s *MemKVStore[K, V]) Len() (count int) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return len(s.entries)
+	return s.tree.Len()
 }
 
 func (s *MemKVStore[K, V]) View(ctx context.Context, fn func(ReadOnlyKVStore[K, V]) error) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return fn(&memTxStore[K, V]{
-		read: s.entries,
+		read: &s.tree,
 		cmp:  s.cmp,
 	})
 }
@@ -67,7 +70,7 @@ func (s *MemKVStore[K, V]) Modify(ctx context.Context, fn func(KVStore[K, V]) er
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx := &memTxStore[K, V]{
-		read:    s.entries,
+		read:    &s.tree,
 		puts:    make([]Entry[K, V], 0),
 		deletes: make([]Entry[K, struct{}], 0),
 		cmp:     s.cmp,
@@ -76,10 +79,10 @@ func (s *MemKVStore[K, V]) Modify(ctx context.Context, fn func(KVStore[K, V]) er
 		return err
 	}
 	for _, e := range tx.puts {
-		s.entries = putEntry(s.entries, e.Key, e.Value, s.cmp)
+		s.tree.ReplaceOrInsert(e)
 	}
 	for _, e := range tx.deletes {
-		s.entries = deleteEntry(s.entries, e.Key, s.cmp)
+		s.tree.Delete(Entry[K, V]{Key: e.Key})
 	}
 	return nil
 }
@@ -87,7 +90,7 @@ func (s *MemKVStore[K, V]) Modify(ctx context.Context, fn func(KVStore[K, V]) er
 type memTxStore[K, V any] struct {
 	puts    []Entry[K, V]
 	deletes []Entry[K, struct{}]
-	read    []Entry[K, V]
+	read    *btree.BTreeG[Entry[K, V]]
 	cmp     func(a, b K) int
 }
 
@@ -111,7 +114,7 @@ func (s *memTxStore[K, V]) Get(ctx context.Context, k K) (V, error) {
 	if _, exists := getEntry(s.deletes, k, s.cmp); exists {
 		return zero, ErrNotFound
 	}
-	e, exists := getEntry(s.read, k, s.cmp)
+	e, exists := s.read.Get(Entry[K, V]{Key: k})
 	if !exists {
 		return zero, ErrNotFound
 	}
@@ -123,19 +126,20 @@ func (s *memTxStore[K, V]) List(ctx context.Context, span Span[K], buf []K) (n i
 	if s.puts != nil || s.deletes != nil {
 		panic("List not yet implemented for write transactions")
 	}
-	for _, e := range s.read {
+	s.read.Ascend(func(e Entry[K, V]) bool {
 		if n == len(buf) {
-			break
+			return false
 		}
 		c := span.Compare(e.Key, s.cmp)
 		if c > 0 {
-			continue
+			return true
 		} else if c < 0 {
-			break
+			return false
 		}
 		buf[n] = e.Key
 		n++
-	}
+		return true
+	})
 	return n, nil
 }
 

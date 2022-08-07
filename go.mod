@@ -3,6 +3,7 @@ module github.com/brendoncarroll/go-state
 go 1.18
 
 require (
+	github.com/google/btree v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
