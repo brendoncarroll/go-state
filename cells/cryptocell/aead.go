@@ -18,8 +18,8 @@ type AEAD struct {
 
 // NewChaCha20Poly1305 creats a chaha20poly1305 aead using secret
 // and then calls NewAEAD with it.
-func NewChaCha20Poly1305(inner cells.Cell, secret []byte) cells.Cell {
-	a, err := chacha20poly1305.NewX(secret)
+func NewChaCha20Poly1305(inner cells.Cell, secret *[32]byte) cells.Cell {
+	a, err := chacha20poly1305.NewX(secret[:])
 	if err != nil {
 		panic(err)
 	}
