@@ -37,18 +37,18 @@ func Copy(ctx context.Context, dst Poster, src Getter, id ID) error {
 }
 
 type CopyAllFrom interface {
-	CopyAllFrom(ctx context.Context, src Store) error
+	CopyAllFrom(ctx context.Context, src Getter) error
 }
 
 // CopyAll copies all the data from src to dst
-func CopyAll(ctx context.Context, dst, src Store) error {
+func CopyAll(ctx context.Context, dst Poster, src ListGetter) error {
 	if caf, ok := dst.(CopyAllFrom); ok {
 		return caf.CopyAllFrom(ctx, src)
 	}
 	return CopyAllBasic(ctx, dst, src)
 }
 
-func CopyAllBasic(ctx context.Context, dst, src Store) error {
+func CopyAllBasic(ctx context.Context, dst Poster, src ListGetter) error {
 	numWorkers := runtime.GOMAXPROCS(0)
 	ch := make(chan ID)
 	eg, ctx := errgroup.WithContext(ctx)
@@ -101,6 +101,23 @@ func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
 	return buf[:n], err
 }
 
-func Exists(ctx context.Context, x Lister, id ID) (bool, error) {
-	return state.Exists[ID](ctx, x, id)
+// Exists returns (true, nil) if x has ID
+// If x implements Exister, then x.Exists is called
+// If x implements Lister, then x.List is called
+// If x does not implement anything other than Getter, then the data is retrieved and ErrNotFound produces (false, nil)
+func Exists(ctx context.Context, x Getter, id ID) (bool, error) {
+	if exister, ok := x.(Exister); ok {
+		return exister.Exists(ctx, id)
+	}
+	if lister, ok := x.(Lister); ok {
+		return state.ExistsUsingList[ID](ctx, lister, id)
+	}
+	_, err := GetBytes(ctx, x, id)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
