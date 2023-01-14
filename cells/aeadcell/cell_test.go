@@ -1,15 +1,13 @@
-package cryptocell
+package aeadcell
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
 	"testing"
 
 	"github.com/brendoncarroll/go-state/cells"
 	"github.com/brendoncarroll/go-state/cells/celltest"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -22,7 +20,7 @@ func TestAEAD(t *testing.T) {
 			mc := cells.NewMem(maxSize)
 			aead, err := chacha20poly1305.NewX(testSecret(t))
 			require.NoError(t, err)
-			return NewAEAD(mc, aead)
+			return New(mc, aead)
 		})
 	})
 	t.Run("AES256-GCM", func(t *testing.T) {
@@ -32,33 +30,9 @@ func TestAEAD(t *testing.T) {
 			require.NoError(t, err)
 			aead, err := cipher.NewGCMWithNonceSize(ciph, 24)
 			require.NoError(t, err)
-			return NewAEAD(mc, aead)
+			return New(mc, aead)
 		})
 	})
-}
-
-func TestSecretBox(t *testing.T) {
-	celltest.CellTestSuite(t, func(testing.TB) cells.Cell {
-		mc := cells.NewMem(maxSize)
-		return NewSecretBox(mc, testSecret(t))
-	})
-}
-
-func TestSecretBoxEncryptDecrypt(t *testing.T) {
-	secret := make([]byte, 32)
-
-	ptext := []byte("hello world")
-	ctext := encrypt(ptext, secret)
-	t.Log(hex.Dump(ctext))
-
-	ptext2, err := decrypt(ctext, secret)
-	require.Nil(t, err)
-	t.Log(string(ptext2))
-
-	ctextTamper := append([]byte{}, ctext...)
-	ctextTamper[0] ^= 1
-	_, err = decrypt(ctextTamper, secret)
-	assert.NotNil(t, err)
 }
 
 func testSecret(t *testing.T) []byte {

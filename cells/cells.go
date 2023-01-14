@@ -23,9 +23,7 @@ type Cell interface {
 }
 
 // Apply attempts to do a CAS on the cell by applying fn to the current value to get the next value.
-func Apply(ctx context.Context, cell Cell, fn func([]byte) ([]byte, error)) error {
-	const maxAttempts = 10
-
+func Apply(ctx context.Context, cell Cell, maxAttempts int, fn func([]byte) ([]byte, error)) error {
 	var (
 		buf     = make([]byte, cell.MaxSize())
 		success bool
