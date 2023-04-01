@@ -1,6 +1,4 @@
 
-.PHONY: test, tidy
-
 tidy:
 	go mod tidy
 
