@@ -63,14 +63,14 @@ func (s Span[T]) WithUpperExcl(x T) Span[T] {
 }
 
 // WithoutLower returns a copy of s with no lower bound.
-func (s Span[T]) WithoutLower(x T) Span[T] {
+func (s Span[T]) WithoutLower() Span[T] {
 	s.mode &= ^spanModeHasLower
 	s.mode &= ^spanModeIncludesLower
 	return s
 }
 
 // WithoutUpper returns a copy of s with no upper bound.
-func (s Span[T]) WithoutUpper(x T) Span[T] {
+func (s Span[T]) WithoutUpper() Span[T] {
 	s.mode &= ^spanModeHasUpper
 	s.mode &= ^spanModeIncludesUpper
 	return s
