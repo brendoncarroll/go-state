@@ -8,11 +8,11 @@ type Slice[T any] struct {
 	cp  func(dst *T, src T)
 }
 
-func NewSlice[T any](xs []T, cp func(*T, T)) Slice[T] {
+func NewSlice[T any](xs []T, cp func(*T, T)) *Slice[T] {
 	if cp == nil {
 		cp = func(dst *T, src T) { *dst = src }
 	}
-	return Slice[T]{xs: xs, pos: 0, cp: cp}
+	return &Slice[T]{xs: xs, pos: 0, cp: cp}
 }
 
 func (it *Slice[T]) Next(ctx context.Context, dst *T) error {
