@@ -20,7 +20,7 @@ func CellTestSuite(t *testing.T, factory func(t testing.TB) Cell) {
 		c := factory(t)
 		buf := make([]byte, c.MaxSize())
 		n, err := c.Read(ctx, buf)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, n, 0)
 	})
 	t.Run("CAS", func(t *testing.T) {
@@ -28,7 +28,7 @@ func CellTestSuite(t *testing.T, factory func(t testing.TB) Cell) {
 		c := factory(t)
 		buf := make([]byte, c.MaxSize())
 		n, err := c.Read(ctx, buf)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		const N = 10
 		for i := 0; i < N; i++ {
 			prev := buf[:n]
