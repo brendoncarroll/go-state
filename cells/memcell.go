@@ -1,48 +1,48 @@
 package cells
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"sync"
 )
 
-type MemCell struct {
-	mu      sync.RWMutex
-	value   []byte
-	maxSize int
+type MemCell[T any] struct {
+	eq func(T, T) bool
+	cp func(*T, T)
+
+	mu    sync.RWMutex
+	value T
 }
 
-func NewMem(maxSize int) Cell {
-	return &MemCell{
-		maxSize: maxSize,
+func NewMem[T any](eq func(T, T) bool, cp func(*T, T)) *MemCell[T] {
+	return &MemCell[T]{
+		eq: eq,
+		cp: cp,
 	}
 }
 
-func (c *MemCell) Read(ctx context.Context, buf []byte) (int, error) {
+func (c *MemCell[T]) Load(ctx context.Context, dst *T) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return copy(buf, c.value), nil
+	c.cp(dst, c.value)
+	return nil
 }
 
-func (c *MemCell) CAS(ctx context.Context, actual, prev, next []byte) (bool, int, error) {
-	if len(next) > c.MaxSize() {
-		return false, 0, ErrTooLarge{}
-	}
+func (c *MemCell[T]) CAS(ctx context.Context, actual *T, prev, next T) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var success bool
-	if bytes.Equal(prev, c.value) {
-		c.value = append(c.value[:0], next...)
+	if c.eq(prev, c.value) {
+		c.cp(&c.value, next)
 		success = true
 	}
-	if len(actual) < len(c.value) {
-		return success, 0, io.ErrShortBuffer
-	}
-	n := copy(actual, c.value)
-	return success, n, nil
+	c.cp(actual, c.value)
+	return success, nil
 }
 
-func (c *MemCell) MaxSize() int {
-	return c.maxSize
+func (c *MemCell[T]) Copy(dst *T, src T) {
+	c.cp(dst, src)
+}
+
+func (c *MemCell[T]) Equals(a, b T) bool {
+	return c.eq(a, b)
 }

@@ -6,39 +6,49 @@ import (
 )
 
 // Cell is a compare-and-swap cell
-type Cell interface {
+type Cell[T any] interface {
 	// CAS sets the contents of the cell to next, IFF prev equals the cell contents.
 	// returns whether or not the swap was successful, the actual value in the cell, or an error
 	// if err != nil then success must be false.
 	// the swap failing is not considered an error.
-	CAS(ctx context.Context, actual, prev, next []byte) (success bool, n int, err error)
+	CAS(ctx context.Context, actual *T, prev, next T) (success bool, err error)
 
-	// Read retrieves the contents of the cell, and writes them to buf.
+	// Load retrieves the contents of the cell, and writes them to buf.
 	// If err != nil the data returned is invalid.
 	// If err == nil, n will be the number of bytes written
-	Read(ctx context.Context, buf []byte) (n int, err error)
+	Load(ctx context.Context, dst *T) error
 
-	// MaxSize returns the maximum amount of data that can be stored in this cell
-	MaxSize() int
+	// Equals is the equality function used by the cell.
+	Equals(a, b T) bool
+
+	// Copy is the function used to copy values in and out of the cell.
+	Copy(dst *T, src T)
+}
+
+func DefaultEquals[T comparable](a, b T) bool {
+	return a == b
+}
+
+func DefaultCopy[T any](dst *T, src T) {
+	*dst = src
 }
 
 // Apply attempts to do a CAS on the cell by applying fn to the current value to get the next value.
-func Apply(ctx context.Context, cell Cell, maxAttempts int, fn func([]byte) ([]byte, error)) error {
+func Apply[T any](ctx context.Context, cell Cell[T], maxAttempts int, fn func(T) (T, error)) error {
 	var (
-		buf     = make([]byte, cell.MaxSize())
+		actual  T
 		success bool
 	)
-	n, err := cell.Read(ctx, buf)
-	if err != nil {
+	if err := cell.Load(ctx, &actual); err != nil {
 		return err
 	}
 	for i := 0; i < maxAttempts; i++ {
-		prev := buf[:n]
+		prev := actual
 		next, err := fn(prev)
 		if err != nil {
 			return err
 		}
-		success, n, err = cell.CAS(ctx, buf, prev, next)
+		success, err = cell.CAS(ctx, &actual, prev, next)
 		if err != nil {
 			return err
 		}
@@ -49,24 +59,8 @@ func Apply(ctx context.Context, cell Cell, maxAttempts int, fn func([]byte) ([]b
 	return ErrCASMaxAttempts{}
 }
 
-// GetBytes is a convenience function that allocates memory, fills it with the contents of cell and returns it
-func GetBytes(ctx context.Context, cell Cell) ([]byte, error) {
-	buf := make([]byte, cell.MaxSize())
-	n, err := cell.Read(ctx, buf)
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
-}
-
-type ErrTooLarge struct{}
-
-func IsErrTooLarge(err error) bool {
-	return errors.Is(err, ErrTooLarge{})
-}
-
-func (e ErrTooLarge) Error() string {
-	return "data too large for cell"
+func Load[T any](ctx context.Context, cell Cell[T]) (ret T, _ error) {
+	return ret, cell.Load(ctx, &ret)
 }
 
 type ErrCASMaxAttempts struct{}

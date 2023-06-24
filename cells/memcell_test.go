@@ -9,7 +9,7 @@ import (
 
 func TestMemCell(t *testing.T) {
 	const maxSize = 1 << 16
-	celltest.CellTestSuite(t, func(t testing.TB) cells.Cell {
-		return cells.NewMem(maxSize)
+	celltest.TestCell[string](t, func(t testing.TB) cells.Cell[string] {
+		return cells.NewMem(cells.DefaultEquals[string], cells.DefaultCopy[string])
 	})
 }

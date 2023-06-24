@@ -11,7 +11,7 @@ import (
 )
 
 func TestSuite(t *testing.T) {
-	celltest.CellTestSuite(t, func(t testing.TB) cells.Cell {
+	celltest.TestCell(t, func(t testing.TB) cells.Cell[[]byte] {
 		ctx := context.TODO()
 		ctx, cf := context.WithCancel(ctx)
 		t.Cleanup(cf)

@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/brendoncarroll/go-state/cells"
+	"github.com/brendoncarroll/stdctx/logctx"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -23,7 +25,7 @@ type Spec struct {
 	Headers map[string]string
 }
 
-var _ cells.Cell = &Cell{}
+var _ cells.Cell[[]byte] = &Cell{}
 
 type Cell struct {
 	spec Spec
@@ -41,27 +43,28 @@ func (c *Cell) URL() string {
 	return c.spec.URL
 }
 
-func (c *Cell) Read(ctx context.Context, buf []byte) (int, error) {
+func (c *Cell) Load(ctx context.Context, dst *[]byte) error {
 	req := c.newRequest(ctx, http.MethodGet, c.spec.URL, nil)
 
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Println(err)
+			logctx.Error(ctx, "closing http response body", zap.Error(err))
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("bad response %v", resp.Status)
+		return fmt.Errorf("bad response %v", resp.Status)
 	}
-	return readResponse(buf, resp.Body)
+	*dst, err = readResponse(*dst, resp.Body)
+	return err
 }
 
-func (c *Cell) CAS(ctx context.Context, actual, cur, next []byte) (bool, int, error) {
+func (c *Cell) CAS(ctx context.Context, actual *[]byte, cur, next []byte) (bool, error) {
 	if len(next) > c.MaxSize() {
-		return false, 0, cells.ErrTooLarge{}
+		return false, cells.ErrTooLarge{}
 	}
 	curHash := sha3.Sum256(cur)
 	curHashb64 := base64.URLEncoding.EncodeToString(curHash[:])
@@ -71,19 +74,27 @@ func (c *Cell) CAS(ctx context.Context, actual, cur, next []byte) (bool, int, er
 
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return false, 0, err
+		return false, err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			log.Println(err)
 		}
 	}()
-	n, err := readResponse(actual, resp.Body)
+	*actual, err = readResponse((*actual)[:0], resp.Body)
 	if err != nil {
-		return false, 0, err
+		return false, err
 	}
-	success := bytes.Equal(next, actual[:n])
-	return success, n, nil
+	success := bytes.Equal(next, *actual)
+	return success, nil
+}
+
+func (c *Cell) Copy(dst *[]byte, src []byte) {
+	cells.CopyBytes(dst, src)
+}
+
+func (c *Cell) Equals(a, b []byte) bool {
+	return cells.EqualBytes(a, b)
 }
 
 func (c *Cell) MaxSize() int {
@@ -103,17 +114,11 @@ func (c *Cell) newRequest(ctx context.Context, method, u string, body io.Reader)
 	return req
 }
 
-func readResponse(dst []byte, r io.Reader) (int, error) {
-	var n int
-	for {
-		n2, err := r.Read(dst)
-		if err != nil && err != io.EOF {
-			return n, err
-		}
-		n += n2
-		if err == io.EOF {
-			break
-		}
+// readResponse appends data from r to out, and returns it.
+func readResponse(out []byte, r io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
-	return n, nil
+	return append(out, data...), nil
 }

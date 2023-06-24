@@ -1,6 +1,7 @@
 package aeadcell
 
 import (
+	"context"
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
@@ -11,39 +12,52 @@ import (
 
 const MinNonceSize = 20
 
+type Cell struct {
+	inner cells.BytesCell
+	aead  cipher.AEAD
+	cells.Cell[[]byte]
+}
+
+func (c *Cell) MaxSize() int {
+	return c.inner.MaxSize() - c.aead.Overhead()
+}
+
 // New creates a new cell using AEAD using secret
 // and then calls NewAEAD with it.
-func New(inner cells.Cell, aead cipher.AEAD) cells.Cell {
+func New(inner cells.BytesCell, aead cipher.AEAD) cells.BytesCell {
 	if aead.NonceSize() < MinNonceSize {
 		panic("AEAD's nonce size is too small to use a random nonce")
 	}
 	overhead := aead.NonceSize() + aead.Overhead()
-	upward := func(dst, src []byte) (int, error) {
-		if len(dst) < len(src)-overhead {
-			return 0, io.ErrShortBuffer
-		}
+	forward := func(ctx context.Context, dst *[]byte, src []byte) error {
 		if len(src) == 0 {
-			return 0, nil
+			return nil
 		}
 		if len(src) < overhead {
-			return 0, fmt.Errorf("too short (len=%d) to be AEAD nonce + ciphertext, min=%d", len(src), overhead)
+			return fmt.Errorf("too short (len=%d) to be AEAD nonce + ciphertext, min=%d", len(src), overhead)
 		}
 		nonce := src[:aead.NonceSize()]
 		ctext := src[aead.NonceSize():]
-		_, err := aead.Open(dst[:0], nonce, ctext, nil)
-		return len(src) - overhead, err
+		var err error
+		*dst, err = aead.Open((*dst)[:0], nonce, ctext, nil)
+		return err
 	}
-	downward := func(dst, src []byte) (int, error) {
-		if len(dst) < len(src)+overhead {
-			return 0, io.ErrShortBuffer
-		}
-		nonce := dst[:aead.NonceSize()]
-		ctext := dst[aead.NonceSize():]
+	inverse := func(ctx context.Context, dst *[]byte, src []byte) error {
+		*dst = (*dst)[:0]
+		*dst = append(*dst, make([]byte, aead.NonceSize())...)
+		nonce := (*dst)[:aead.NonceSize()]
 		if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-			return 0, err
+			return err
 		}
-		aead.Seal(ctext[:0], nonce, src, nil)
-		return len(src) + overhead, nil
+		*dst = aead.Seal(*dst, nonce, src, nil)
+		return nil
 	}
-	return cells.NewTransform(inner, upward, downward, overhead)
+	d := cells.NewDerived[[]byte, []byte](cells.DerivedParams[[]byte, []byte]{
+		Inner:   inner,
+		Forward: forward,
+		Inverse: inverse,
+		Copy:    cells.CopyBytes,
+		Eq:      cells.EqualBytes,
+	})
+	return &Cell{inner: inner, aead: aead, Cell: d}
 }

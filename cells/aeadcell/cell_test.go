@@ -16,16 +16,16 @@ const maxSize = 1 << 16
 
 func TestAEAD(t *testing.T) {
 	t.Run("ChaCha20Poly1305", func(t *testing.T) {
-		celltest.CellTestSuite(t, func(testing.TB) cells.Cell {
-			mc := cells.NewMem(maxSize)
+		celltest.TestCell(t, func(testing.TB) cells.Cell[[]byte] {
+			mc := cells.NewMemBytes(maxSize)
 			aead, err := chacha20poly1305.NewX(testSecret(t))
 			require.NoError(t, err)
 			return New(mc, aead)
 		})
 	})
 	t.Run("AES256-GCM", func(t *testing.T) {
-		celltest.CellTestSuite(t, func(testing.TB) cells.Cell {
-			mc := cells.NewMem(maxSize)
+		celltest.TestCell(t, func(testing.TB) cells.Cell[[]byte] {
+			mc := cells.NewMemBytes(maxSize)
 			ciph, err := aes.NewCipher(testSecret(t))
 			require.NoError(t, err)
 			aead, err := cipher.NewGCMWithNonceSize(ciph, 24)
