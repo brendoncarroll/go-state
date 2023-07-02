@@ -7,6 +7,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+var _ Cell[struct{}] = &Cached[struct{}]{}
+
 type Cached[T any] struct {
 	inner Cell[T]
 
@@ -56,6 +58,14 @@ func (c *Cached[T]) CAS(ctx context.Context, actual *T, prev, next T) (bool, err
 	c.inner.Copy(actual, *c.buf)
 	c.swapIntoCache()
 	return swapped, nil
+}
+
+func (c *Cached[T]) Copy(dst *T, src T) {
+	c.inner.Copy(dst, src)
+}
+
+func (c *Cached[T]) Equals(a, b T) bool {
+	return c.inner.Equals(a, b)
 }
 
 func (c *Cached[T]) Invalidate() {
