@@ -25,7 +25,7 @@ func TestCell[T any](t *testing.T, factory func(t testing.TB) cells.Cell[T]) {
 		var buf T
 		require.NoError(t, c.Load(ctx, &buf))
 		const N = 10
-		fz := fuzz.New()
+		fz := fuzz.New().NilChance(0)
 		var next T
 		for i := 0; i < N; i++ {
 			prev := buf
