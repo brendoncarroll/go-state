@@ -30,6 +30,18 @@ func (e ErrTooLarge) Error() string {
 	return "data too large for cell"
 }
 
+// BytesCellBase provides Equals, and Copy methods.
+// It is intended to be composed in implementations of BytesCell
+type BytesCellBase struct{}
+
+func (BytesCellBase) Equals(a, b []byte) bool {
+	return EqualBytes(a, b)
+}
+
+func (BytesCellBase) Copy(dst *[]byte, src []byte) {
+	CopyBytes(dst, src)
+}
+
 type MemBytes struct {
 	*MemCell[[]byte]
 	maxSize int

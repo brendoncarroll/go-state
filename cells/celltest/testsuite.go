@@ -26,15 +26,17 @@ func TestCell[T any](t *testing.T, factory func(t testing.TB) cells.Cell[T]) {
 		require.NoError(t, c.Load(ctx, &buf))
 		const N = 10
 		fz := fuzz.New()
+		var next T
 		for i := 0; i < N; i++ {
 			prev := buf
-			var next T
 			fz.Fuzz(&next)
 			t.Log("next:", next)
 			success, err := c.CAS(ctx, &buf, prev, next)
 			require.NoError(t, err)
 			require.True(t, success)
 		}
+		require.NoError(t, c.Load(ctx, &buf))
+		require.Equal(t, next, buf)
 	})
 }
 

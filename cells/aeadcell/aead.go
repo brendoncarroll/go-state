@@ -19,7 +19,8 @@ type Cell struct {
 }
 
 func (c *Cell) MaxSize() int {
-	return c.inner.MaxSize() - c.aead.Overhead()
+	overhead := c.aead.NonceSize() + c.aead.Overhead()
+	return c.inner.MaxSize() - overhead
 }
 
 // New creates a new cell using AEAD using secret
@@ -31,6 +32,7 @@ func New(inner cells.BytesCell, aead cipher.AEAD) cells.BytesCell {
 	overhead := aead.NonceSize() + aead.Overhead()
 	forward := func(ctx context.Context, dst *[]byte, src []byte) error {
 		if len(src) == 0 {
+			cells.CopyBytes(dst, nil)
 			return nil
 		}
 		if len(src) < overhead {
@@ -57,7 +59,7 @@ func New(inner cells.BytesCell, aead cipher.AEAD) cells.BytesCell {
 		Forward: forward,
 		Inverse: inverse,
 		Copy:    cells.CopyBytes,
-		Eq:      cells.EqualBytes,
+		Equals:  cells.EqualBytes,
 	})
 	return &Cell{inner: inner, aead: aead, Cell: d}
 }

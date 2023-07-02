@@ -20,7 +20,7 @@ type DerivedParams[X, Y any] struct {
 	Inner   Cell[X]
 	Forward func(ctx context.Context, dst *Y, src X) error
 	Inverse func(ctx context.Context, dst *X, src Y) error
-	Eq      func(Y, Y) bool
+	Equals  func(Y, Y) bool
 	Copy    func(*Y, Y)
 }
 
@@ -44,14 +44,20 @@ func (c *Derived[X, Y]) Load(ctx context.Context, dst *Y) error {
 func (c *Derived[X, Y]) CAS(ctx context.Context, actual *Y, prev, next Y) (bool, error) {
 	// First get the previous
 	var prevX X
-	c.mu.Lock()
-	if !c.valid || !c.p.Eq(c.currentY, prev) {
-		c.mu.Unlock()
-		return false, c.Load(ctx, actual)
-	} else {
-		c.p.Inner.Copy(&prevX, c.currentX)
-		c.mu.Unlock()
+	for {
+		c.mu.Lock()
+		if !c.valid || !c.p.Equals(c.currentY, prev) {
+			c.mu.Unlock()
+			if err := c.Load(ctx, actual); err != nil {
+				return false, err
+			}
+		} else {
+			c.p.Inner.Copy(&prevX, c.currentX)
+			c.mu.Unlock()
+			break
+		}
 	}
+
 	var actualX, nextX X
 	if err := c.p.Inverse(ctx, &nextX, next); err != nil {
 		return false, err
@@ -80,7 +86,7 @@ func (c *Derived[X, Y]) forward(ctx context.Context, dst *Y, src X) error {
 }
 
 func (c *Derived[X, Y]) Equals(a, b Y) bool {
-	return c.p.Eq(a, b)
+	return c.p.Equals(a, b)
 }
 
 func (c *Derived[X, Y]) Copy(dst *Y, src Y) {

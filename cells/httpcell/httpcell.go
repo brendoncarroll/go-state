@@ -58,7 +58,7 @@ func (c *Cell) Load(ctx context.Context, dst *[]byte) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad response %v", resp.Status)
 	}
-	*dst, err = readResponse(*dst, resp.Body)
+	*dst, err = readResponse((*dst)[:0], resp.Body)
 	return err
 }
 
