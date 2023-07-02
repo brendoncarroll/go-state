@@ -42,6 +42,7 @@ func (c *Cached[T]) Load(ctx context.Context, dst *T) error {
 	if err := c.inner.Load(ctx, c.buf); err != nil {
 		return err
 	}
+	c.inner.Copy(dst, *c.buf)
 	c.swapIntoCache()
 	return nil
 }
