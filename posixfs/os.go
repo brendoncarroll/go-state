@@ -87,8 +87,12 @@ func (f osFile) ReadDir(n int) ([]DirEnt, error) {
 	}
 	ents := make([]DirEnt, len(dirEnts))
 	for i := range dirEnts {
+		finfo, err := dirEnts[i].Info()
+		if err != nil {
+			return nil, err
+		}
 		ents[i] = DirEnt{
-			Mode: dirEnts[i].Type(),
+			Mode: finfo.Mode(),
 			Name: dirEnts[i].Name(),
 		}
 	}
