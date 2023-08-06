@@ -51,3 +51,7 @@ func (fs ReadOnly) Rename(oldPath, newPath string) error {
 func (fs ReadOnly) Stat(p string) (FileInfo, error) {
 	return fs.inner.Stat(p)
 }
+
+func (fs ReadOnly) Symlink(oldp, newp string) error {
+	return ErrReadOnly{Op: "symlink"}
+}

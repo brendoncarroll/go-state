@@ -74,6 +74,16 @@ func (fs filtered) Stat(p string) (FileInfo, error) {
 	return fs.x.Stat(p)
 }
 
+func (fs filtered) Symlink(oldp, newp string) error {
+	if err := fs.checkPath(oldp); err != nil {
+		return err
+	}
+	if err := fs.checkPath(newp); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (fs filtered) checkPath(p string) error {
 	if fs.predicate(p) {
 		return nil

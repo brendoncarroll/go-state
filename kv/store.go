@@ -1,14 +1,10 @@
-package state
+package kv
 
 import (
 	"context"
-	"errors"
 
+	"github.com/brendoncarroll/go-state"
 	"golang.org/x/sync/errgroup"
-)
-
-var (
-	ErrNotFound = errors.New("no entry found")
 )
 
 // Entry is a key value mapping.
@@ -49,7 +45,7 @@ type Lister[K any] interface {
 	// List signals the end of the list by returning (0, nil)
 	// List may fill ks with fewer than len(ks), but will always return > 0, unless it is the end.
 	// List will only return keys which are contained by in the span.
-	List(ctx context.Context, span Span[K], ks []K) (int, error)
+	List(ctx context.Context, span state.Span[K], ks []K) (int, error)
 }
 
 // Exister has the Exists method
@@ -60,37 +56,38 @@ type Exister[K any] interface {
 
 // Getter has the Get method
 type Getter[K, V any] interface {
-	Get(ctx context.Context, k K) (V, error)
+	Get(ctx context.Context, k K, dst *V) error
 }
 
-// KVStore is an ordered Key-Value Store
-type KVStore[K, V any] interface {
+// Store is an ordered Key-Value Store
+type Store[K, V any] interface {
 	Getter[K, V]
 	Putter[K, V]
 	Deleter[K]
 	Lister[K]
+	Exister[K]
 }
 
-// ReadOnlyKVStore is a KVStore which does not allow mutating data.
-type ReadOnlyKVStore[K, V any] interface {
+// ReadOnlyStore is a KVStore which does not allow mutating data.
+type ReadOnlyStore[K, V any] interface {
 	Getter[K, V]
 	Lister[K]
 }
 
-// KVStoreTx is a transactional key value store
-type KVStoreTx[K, V any] interface {
+// StoreTx is a transactional key value store
+type StoreTx[K, V any] interface {
 	// View calls fn with a ReadOnly view of the store
-	View(ctx context.Context, fn func(tx ReadOnlyKVStore[K, V]) error) error
+	View(ctx context.Context, fn func(tx ReadOnlyStore[K, V]) error) error
 	// Modify calls fn with a mutable view of the store.
 	// Any operations on the store are either all applied if fn and Modify both return nil,
 	// or all reverted if either fn or View returns a non-nil error.
-	Modify(ctx context.Context, fn func(tx KVStore[K, V]) error) error
+	Modify(ctx context.Context, fn func(tx Store[K, V]) error) error
 }
 
 // ForEach calls fn with all the keys in x constrained by gteq, and lt if they exist.
 // `fn` may be called in another go rountine during the execution of ForEachSpan.
 // `fn` will not be called after ForEachSpan returns.
-func ForEach[K any](ctx context.Context, x Lister[K], span Span[K], fn func(K) error) error {
+func ForEach[K any](ctx context.Context, x Lister[K], span state.Span[K], fn func(K) error) error {
 	const batchSize = 16
 	const chanSize = 32
 
@@ -129,19 +126,14 @@ func ForEach[K any](ctx context.Context, x Lister[K], span Span[K], fn func(K) e
 	return eg.Wait()
 }
 
-// Exists checks if k exists in x.
-// Exists will check if s also implements Exister and use the Exists method.
-// If not it will call ExistsUsingList
-func Exists[K any](ctx context.Context, s Lister[K], k K) (bool, error) {
-	if exister, ok := s.(Exister[K]); ok {
-		return exister.Exists(ctx, k)
-	}
-	return ExistsUsingList(ctx, s, k)
+// Get is a convenience function for retrieving a value without declaring a destination variable.
+func Get[K, V any](ctx context.Context, x Getter[K, V], k K) (ret V, _ error) {
+	return ret, x.Get(ctx, k, &ret)
 }
 
 // ExistsUsingList implements Exists in terms of List
 func ExistsUsingList[K any](ctx context.Context, s Lister[K], k K) (bool, error) {
-	span := PointSpan(k)
+	span := state.PointSpan(k)
 	ks := [1]K{}
 	n, err := s.List(ctx, span, ks[:])
 	if err != nil {

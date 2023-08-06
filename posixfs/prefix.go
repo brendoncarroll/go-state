@@ -47,3 +47,8 @@ func (fs prefixed) Stat(p string) (FileInfo, error) {
 	p = path.Join(fs.prefix, p)
 	return fs.x.Stat(p)
 }
+
+func (fs prefixed) Symlink(target, newPath string) error {
+	newPath = path.Join(fs.prefix, newPath)
+	return fs.x.Symlink(target, newPath)
+}

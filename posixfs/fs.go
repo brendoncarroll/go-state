@@ -60,4 +60,5 @@ type FS interface {
 	Remove(p string) error
 	Rename(oldPath, newPath string) error
 	Stat(p string) (FileInfo, error)
+	Symlink(target, link string) error
 }

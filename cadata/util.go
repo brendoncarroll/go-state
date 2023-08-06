@@ -5,13 +5,13 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/brendoncarroll/go-state"
+	"github.com/brendoncarroll/go-state/kv"
 	"golang.org/x/sync/errgroup"
 )
 
 // ForEachSpan calls fn with every ID in the range
 func ForEach(ctx context.Context, s Lister, span Span, fn func(ID) error) error {
-	return state.ForEach[ID](ctx, s, span, fn)
+	return kv.ForEach[ID](ctx, s, span, fn)
 }
 
 // Copy copies the data referenced by id from src to dst.
@@ -41,14 +41,14 @@ type CopyAllFrom interface {
 }
 
 // CopyAll copies all the data from src to dst
-func CopyAll(ctx context.Context, dst Poster, src ListGetter) error {
+func CopyAll(ctx context.Context, dst Poster, src GetLister) error {
 	if caf, ok := dst.(CopyAllFrom); ok {
 		return caf.CopyAllFrom(ctx, src)
 	}
 	return CopyAllBasic(ctx, dst, src)
 }
 
-func CopyAllBasic(ctx context.Context, dst Poster, src ListGetter) error {
+func CopyAllBasic(ctx context.Context, dst Poster, src GetLister) error {
 	numWorkers := runtime.GOMAXPROCS(0)
 	ch := make(chan ID)
 	eg, ctx := errgroup.WithContext(ctx)
@@ -104,20 +104,9 @@ func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
 // Exists returns (true, nil) if x has ID
 // If x implements Exister, then x.Exists is called
 // If x implements Lister, then x.List is called
-// If x does not implement anything other than Getter, then the data is retrieved and ErrNotFound produces (false, nil)
-func Exists(ctx context.Context, x Getter, id ID) (bool, error) {
+func Exists(ctx context.Context, x Lister, id ID) (bool, error) {
 	if exister, ok := x.(Exister); ok {
 		return exister.Exists(ctx, id)
 	}
-	if lister, ok := x.(Lister); ok {
-		return state.ExistsUsingList[ID](ctx, lister, id)
-	}
-	_, err := GetBytes(ctx, x, id)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	return kv.ExistsUsingList[ID](ctx, x, id)
 }

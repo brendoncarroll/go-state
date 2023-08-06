@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/brendoncarroll/go-state"
+	"github.com/brendoncarroll/go-state/kv"
 )
 
 var _ Store = &MemStore{}
@@ -14,14 +15,14 @@ var _ Store = &MemStore{}
 type MemStore struct {
 	hash    HashFunc
 	maxSize int
-	s       *state.MemKVStore[ID, []byte]
+	s       *kv.MemStore[ID, []byte]
 }
 
 func NewMem(hf HashFunc, maxSize int) *MemStore {
 	return &MemStore{
 		maxSize: maxSize,
 		hash:    hf,
-		s: state.NewMemKVStore[ID, []byte](func(a, b ID) int {
+		s: kv.NewMemStore[ID, []byte](func(a, b ID) int {
 			return bytes.Compare(a[:], b[:])
 		}),
 	}
@@ -40,8 +41,8 @@ func (s *MemStore) Post(ctx context.Context, data []byte) (ID, error) {
 }
 
 func (s *MemStore) Get(ctx context.Context, id ID, buf []byte) (int, error) {
-	data, err := s.s.Get(ctx, id)
-	if err != nil {
+	var data []byte
+	if err := s.s.Get(ctx, id, &data); err != nil {
 		if errors.Is(err, state.ErrNotFound) {
 			err = ErrNotFound
 		}
@@ -62,7 +63,7 @@ func (s *MemStore) Delete(ctx context.Context, id ID) error {
 }
 
 func (s *MemStore) Exists(ctx context.Context, id ID) (bool, error) {
-	return state.Exists[ID](ctx, s.s, id)
+	return s.s.Exists(ctx, id)
 }
 
 func (s *MemStore) Len() (count int) {

@@ -1,6 +1,10 @@
 package state
 
-import "context"
+import (
+	"context"
+
+	"github.com/brendoncarroll/go-state/kv"
+)
 
 // Adder has the Add method
 type Adder[K comparable] interface {
@@ -9,22 +13,22 @@ type Adder[K comparable] interface {
 
 // Set represents a set of elements
 type Set[K comparable] interface {
-	Lister[K]
+	kv.Lister[K]
 	Adder[K]
-	Deleter[K]
+	kv.Deleter[K]
 }
 
 type memSet[K comparable] struct {
-	*MemKVStore[K, struct{}]
+	*kv.MemStore[K, struct{}]
 }
 
 // NewMemSet returns a Set using memory for storage.
 func NewMemSet[K comparable](cmp func(a, b K) int) Set[K] {
 	return memSet[K]{
-		MemKVStore: NewMemKVStore[K, struct{}](cmp),
+		MemStore: kv.NewMemStore[K, struct{}](cmp),
 	}
 }
 
 func (ms memSet[K]) Add(ctx context.Context, k K) error {
-	return ms.Put(ctx, k, struct{}{})
+	return ms.MemStore.Put(ctx, k, struct{}{})
 }

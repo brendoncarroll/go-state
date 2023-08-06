@@ -1,21 +1,22 @@
-package state
+package kv
 
 import (
 	"context"
 	"sync"
 
+	"github.com/brendoncarroll/go-state"
 	"github.com/google/btree"
 	"golang.org/x/exp/slices"
 )
 
-type MemKVStore[K, V any] struct {
+type MemStore[K, V any] struct {
 	cmp  func(a, b K) int
 	mu   sync.RWMutex
 	tree btree.BTreeG[Entry[K, V]]
 }
 
-func NewMemKVStore[K, V any](cmp func(a, b K) int) *MemKVStore[K, V] {
-	return &MemKVStore[K, V]{
+func NewMemStore[K, V any](cmp func(a, b K) int) *MemStore[K, V] {
+	return &MemStore[K, V]{
 		cmp: cmp,
 		tree: *btree.NewG[Entry[K, V]](2, func(a, b Entry[K, V]) bool {
 			return cmp(a.Key, b.Key) < 0
@@ -23,41 +24,43 @@ func NewMemKVStore[K, V any](cmp func(a, b K) int) *MemKVStore[K, V] {
 	}
 }
 
-func (s *MemKVStore[K, V]) Put(ctx context.Context, k K, v V) error {
-	return s.Modify(ctx, func(s KVStore[K, V]) error {
+func (s *MemStore[K, V]) Put(ctx context.Context, k K, v V) error {
+	return s.Modify(ctx, func(s Store[K, V]) error {
 		return s.Put(ctx, k, v)
 	})
 }
 
-func (s *MemKVStore[K, V]) Delete(ctx context.Context, k K) error {
-	return s.Modify(ctx, func(s KVStore[K, V]) error {
+func (s *MemStore[K, V]) Delete(ctx context.Context, k K) error {
+	return s.Modify(ctx, func(s Store[K, V]) error {
 		return s.Delete(ctx, k)
 	})
 }
 
-func (s *MemKVStore[K, V]) Get(ctx context.Context, k K) (ret V, err error) {
-	err = s.View(ctx, func(s ReadOnlyKVStore[K, V]) error {
-		ret, err = s.Get(ctx, k)
-		return err
-	})
-	return ret, err
+func (s *MemStore[K, V]) Exists(ctx context.Context, k K) (bool, error) {
+	return ExistsUsingList(ctx, s, k)
 }
 
-func (s *MemKVStore[K, V]) List(ctx context.Context, span Span[K], buf []K) (n int, err error) {
-	err = s.View(ctx, func(s ReadOnlyKVStore[K, V]) error {
+func (s *MemStore[K, V]) Get(ctx context.Context, k K, dst *V) error {
+	return s.View(ctx, func(s ReadOnlyStore[K, V]) error {
+		return s.Get(ctx, k, dst)
+	})
+}
+
+func (s *MemStore[K, V]) List(ctx context.Context, span state.Span[K], buf []K) (n int, err error) {
+	err = s.View(ctx, func(s ReadOnlyStore[K, V]) error {
 		n, err = s.List(ctx, span, buf)
 		return err
 	})
 	return n, err
 }
 
-func (s *MemKVStore[K, V]) Len() (count int) {
+func (s *MemStore[K, V]) Len() (count int) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.tree.Len()
 }
 
-func (s *MemKVStore[K, V]) View(ctx context.Context, fn func(ReadOnlyKVStore[K, V]) error) error {
+func (s *MemStore[K, V]) View(ctx context.Context, fn func(ReadOnlyStore[K, V]) error) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return fn(&memTxStore[K, V]{
@@ -66,7 +69,7 @@ func (s *MemKVStore[K, V]) View(ctx context.Context, fn func(ReadOnlyKVStore[K, 
 	})
 }
 
-func (s *MemKVStore[K, V]) Modify(ctx context.Context, fn func(KVStore[K, V]) error) error {
+func (s *MemStore[K, V]) Modify(ctx context.Context, fn func(Store[K, V]) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx := &memTxStore[K, V]{
@@ -106,22 +109,27 @@ func (s *memTxStore[K, V]) Delete(ctx context.Context, k K) error {
 	return nil
 }
 
-func (s *memTxStore[K, V]) Get(ctx context.Context, k K) (V, error) {
-	var zero V
+func (s *memTxStore[K, V]) Get(ctx context.Context, k K, dst *V) error {
 	if e, exists := getEntry(s.puts, k, s.cmp); exists {
-		return e.Value, nil
+		*dst = e.Value
+		return nil
 	}
 	if _, exists := getEntry(s.deletes, k, s.cmp); exists {
-		return zero, ErrNotFound
+		return state.ErrNotFound
 	}
 	e, exists := s.read.Get(Entry[K, V]{Key: k})
 	if !exists {
-		return zero, ErrNotFound
+		return state.ErrNotFound
 	}
-	return e.Value, nil
+	*dst = e.Value
+	return nil
 }
 
-func (s *memTxStore[K, V]) List(ctx context.Context, span Span[K], buf []K) (n int, _ error) {
+func (s *memTxStore[K, V]) Exists(ctx context.Context, k K) (bool, error) {
+	return ExistsUsingList(ctx, s, k)
+}
+
+func (s *memTxStore[K, V]) List(ctx context.Context, span state.Span[K], buf []K) (n int, _ error) {
 	// TODO: implement this for transactions
 	if s.puts != nil || s.deletes != nil {
 		panic("List not yet implemented for write transactions")

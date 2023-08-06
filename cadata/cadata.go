@@ -61,10 +61,20 @@ type Exister interface {
 	Exists(ctx context.Context, id ID) (bool, error)
 }
 
-// ListGetter combines the Lister and Getter interfaces
-type ListGetter interface {
+// GetLister combines the  Getter and Lister interfaces
+type GetLister interface {
 	Lister
 	Getter
+}
+
+type GetPoster interface {
+	Getter
+	Poster
+}
+
+type PostExister interface {
+	Poster
+	Exister
 }
 
 type Set interface {
@@ -79,6 +89,7 @@ type Store interface {
 	Getter
 	Deleter
 	Lister
+	Exister
 }
 
 var (

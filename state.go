@@ -2,7 +2,12 @@ package state
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+)
+
+var (
+	ErrNotFound = errors.New("no entry found")
 )
 
 // ByteSpan represents a lexicographically sorted span of []byte.

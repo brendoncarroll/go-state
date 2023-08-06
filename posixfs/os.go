@@ -52,6 +52,10 @@ func (osFS) Rename(oldPath, newPath string) error {
 	return os.Rename(oldPath, newPath)
 }
 
+func (osFS) Symlink(oldname, newname string) error {
+	return os.Symlink(oldname, newname)
+}
+
 type osFile struct {
 	f *os.File
 }
