@@ -100,13 +100,3 @@ func GetBytes(ctx context.Context, s Getter, id ID) ([]byte, error) {
 	n, err := s.Get(ctx, id, buf)
 	return buf[:n], err
 }
-
-// Exists returns (true, nil) if x has ID
-// If x implements Exister, then x.Exists is called
-// If x implements Lister, then x.List is called
-func Exists(ctx context.Context, x Lister, id ID) (bool, error) {
-	if exister, ok := x.(Exister); ok {
-		return exister.Exists(ctx, id)
-	}
-	return kv.ExistsUsingList[ID](ctx, x, id)
-}
