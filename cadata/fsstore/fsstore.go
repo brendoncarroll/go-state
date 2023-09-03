@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -14,7 +15,6 @@ import (
 	"github.com/brendoncarroll/go-state"
 	"github.com/brendoncarroll/go-state/cadata"
 	"github.com/brendoncarroll/go-state/posixfs"
-	"github.com/pkg/errors"
 )
 
 var _ cadata.Store = FSStore{}
@@ -56,9 +56,6 @@ func (s FSStore) Get(ctx context.Context, id cadata.ID, buf []byte) (int, error)
 	p := pathForID(id)
 	f, err := s.fs.OpenFile(p, posixfs.O_RDONLY, 0)
 	if err != nil {
-		if posixfs.IsErrNotExist(err) {
-			err = cadata.ErrNotFound
-		}
 		return 0, err
 	}
 	defer f.Close()
@@ -85,7 +82,7 @@ func (s FSStore) Exists(ctx context.Context, id cadata.ID) (bool, error) {
 		return false, err
 	}
 	if finfo.IsDir() {
-		return false, errors.Errorf("expected file, but found directory: %s", p)
+		return false, fmt.Errorf("expected file, but found directory: %s", p)
 	}
 	return true, nil
 }
@@ -159,7 +156,7 @@ func parsePath(p string) (cadata.ID, error) {
 	p = strings.Trim(p, "/")
 	parts := strings.SplitN(p, "/", numParts)
 	if len(parts) != numParts {
-		return cadata.ID{}, errors.Errorf("could not parse path %q", p)
+		return cadata.ID{}, fmt.Errorf("could not parse path %q", p)
 	}
 	data, err := enc.DecodeString(parts[0] + parts[1])
 	if err != nil {

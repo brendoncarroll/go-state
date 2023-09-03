@@ -17,7 +17,7 @@ func ForEach(ctx context.Context, s Lister, span Span, fn func(ID) error) error 
 // Copy copies the data referenced by id from src to dst.
 func Copy(ctx context.Context, dst Poster, src Getter, id ID) error {
 	if adder, ok := dst.(Adder); ok {
-		if err := adder.Add(ctx, id); err != ErrNotFound {
+		if err := adder.Add(ctx, id); !errors.Is(err, ErrNotFound{Key: id}) {
 			return err
 		}
 	}

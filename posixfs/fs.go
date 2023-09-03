@@ -1,11 +1,10 @@
 package posixfs
 
 import (
+	"errors"
 	"io"
 	gofs "io/fs"
 	"os"
-
-	"github.com/pkg/errors"
 )
 
 const Sep = "/"

@@ -3,10 +3,8 @@ package cadata
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 
-	"github.com/brendoncarroll/go-state"
 	"github.com/brendoncarroll/go-state/kv"
 )
 
@@ -43,9 +41,6 @@ func (s *MemStore) Post(ctx context.Context, data []byte) (ID, error) {
 func (s *MemStore) Get(ctx context.Context, id ID, buf []byte) (int, error) {
 	var data []byte
 	if err := s.s.Get(ctx, id, &data); err != nil {
-		if errors.Is(err, state.ErrNotFound) {
-			err = ErrNotFound
-		}
 		return 0, err
 	}
 	if len(buf) < len(data) {
@@ -97,7 +92,7 @@ func (s Void) Post(ctx context.Context, data []byte) (ID, error) {
 }
 
 func (s Void) Get(ctx context.Context, id ID, buf []byte) (int, error) {
-	return 0, ErrNotFound
+	return 0, ErrNotFound{Key: id}
 }
 
 func (s Void) Exists(ctx context.Context, id ID) (bool, error) {

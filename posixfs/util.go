@@ -2,9 +2,9 @@ package posixfs
 
 import (
 	"context"
+	"fmt"
 	"io"
 	gofs "io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-state"
-	"github.com/pkg/errors"
 )
 
 func NewTestFS(t testing.TB) FS {
@@ -71,14 +70,14 @@ func ReadFile(ctx context.Context, fs FS, p string) ([]byte, error) {
 	if err := maybeSetReadDeadline(ctx, f); err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }
 
 // DeleteFile is an idempotent delete operation.
 // It calls remove, but does not error if the path is already gone
 func DeleteFile(ctx context.Context, fs FS, p string) error {
 	err := fs.Remove(p)
-	if errors.Is(err, ErrNotExist) {
+	if IsErrNotExist(err) {
 		return nil
 	}
 	return err
@@ -236,7 +235,7 @@ func MkdirAll(x FS, p string, perm FileMode) error {
 			return err
 		}
 		if !finfo.IsDir() {
-			return errors.Errorf("non-dir at %v", p)
+			return fmt.Errorf("non-dir at %v", p)
 		}
 		return nil
 	}

@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -73,7 +73,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPut:
 		log.Println("PUT", p)
-		proposed, err := ioutil.ReadAll(r.Body)
+		proposed, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusBadRequest)

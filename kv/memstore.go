@@ -115,11 +115,11 @@ func (s *memTxStore[K, V]) Get(ctx context.Context, k K, dst *V) error {
 		return nil
 	}
 	if _, exists := getEntry(s.deletes, k, s.cmp); exists {
-		return state.ErrNotFound
+		return state.ErrNotFound[K]{Key: k}
 	}
 	e, exists := s.read.Get(Entry[K, V]{Key: k})
 	if !exists {
-		return state.ErrNotFound
+		return state.ErrNotFound[K]{Key: k}
 	}
 	*dst = e.Value
 	return nil

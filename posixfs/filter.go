@@ -1,9 +1,8 @@
 package posixfs
 
 import (
+	"fmt"
 	"path"
-
-	"github.com/pkg/errors"
 )
 
 type filtered struct {
@@ -88,7 +87,7 @@ func (fs filtered) checkPath(p string) error {
 	if fs.predicate(p) {
 		return nil
 	}
-	return errors.Errorf("path %q has been filtered", p)
+	return fmt.Errorf("path %q has been filtered", p)
 }
 
 type filteredFile struct {

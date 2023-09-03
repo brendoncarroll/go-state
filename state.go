@@ -6,9 +6,17 @@ import (
 	"fmt"
 )
 
-var (
-	ErrNotFound = errors.New("no entry found")
-)
+type ErrNotFound[K any] struct {
+	Key K
+}
+
+func (e ErrNotFound[K]) Error() string {
+	return fmt.Sprintf("no entry found for %v", e.Key)
+}
+
+func IsErrNotFound[K any](err error) bool {
+	return errors.As(err, &ErrNotFound[K]{})
+}
 
 // ByteSpan represents a lexicographically sorted span of []byte.
 // The span is [Begin, End), meaning Begin is included, and End is excluded.

@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"lukechampine.com/blake3"
+
+	"github.com/brendoncarroll/go-state"
 )
 
 type HashFunc = func(data []byte) ID
@@ -92,14 +94,15 @@ type Store interface {
 	Exister
 }
 
+type ErrNotFound = state.ErrNotFound[ID]
+
 var (
-	ErrNotFound = errors.New("no data found with that ID")
 	ErrTooLarge = errors.New("data is too large for store")
 	ErrBadData  = errors.New("data does not match ID")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return state.IsErrNotFound[ID](err)
 }
 
 func IsTooLarge(err error) bool {
