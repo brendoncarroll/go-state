@@ -21,7 +21,7 @@ func TestMemStore(t *testing.T) {
 	s.Put(ctx, "d", 5)
 	s.Delete(ctx, "d")
 
-	v, err := Get(ctx, s, "b")
+	v, err := Get[string, int](ctx, s, "b")
 	require.NoError(t, err)
 	require.Equal(t, 4, v)
 

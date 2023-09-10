@@ -37,7 +37,7 @@ func (s *MemStore[K, V]) Delete(ctx context.Context, k K) error {
 }
 
 func (s *MemStore[K, V]) Exists(ctx context.Context, k K) (bool, error) {
-	return ExistsUsingList(ctx, s, k)
+	return ExistsUsingList[K](ctx, s, k)
 }
 
 func (s *MemStore[K, V]) Get(ctx context.Context, k K, dst *V) error {
@@ -126,7 +126,7 @@ func (s *memTxStore[K, V]) Get(ctx context.Context, k K, dst *V) error {
 }
 
 func (s *memTxStore[K, V]) Exists(ctx context.Context, k K) (bool, error) {
-	return ExistsUsingList(ctx, s, k)
+	return ExistsUsingList[K](ctx, s, k)
 }
 
 func (s *memTxStore[K, V]) List(ctx context.Context, span state.Span[K], buf []K) (n int, _ error) {
