@@ -1,12 +1,12 @@
-module github.com/brendoncarroll/go-state
+module go.brendoncarroll.net/state
 
 go 1.18
 
 require (
-	github.com/brendoncarroll/stdctx v0.0.0-20230325181752-a8a6ba46e3c1
 	github.com/google/btree v1.1.2
 	github.com/google/gofuzz v1.2.0
 	github.com/stretchr/testify v1.8.1
+	go.brendoncarroll.net/stdctx v0.0.0-20241118190518-40d09f4d11e7
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 	golang.org/x/exp v0.0.0-20220407100705-7b9b53b0aca4

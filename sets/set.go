@@ -3,7 +3,7 @@ package state
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-state/kv"
+	"go.brendoncarroll.net/state/kv"
 )
 
 // Adder has the Add method

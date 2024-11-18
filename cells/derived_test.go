@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/brendoncarroll/go-state/cells"
-	"github.com/brendoncarroll/go-state/cells/celltest"
+	"go.brendoncarroll.net/state/cells"
+	"go.brendoncarroll.net/state/cells/celltest"
 )
 
 func TestDerived(t *testing.T) {

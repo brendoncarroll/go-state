@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/brendoncarroll/go-state"
 	"github.com/google/btree"
+	"go.brendoncarroll.net/state"
 	"golang.org/x/exp/slices"
 )
 

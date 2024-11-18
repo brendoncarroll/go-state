@@ -3,7 +3,7 @@ package kv
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-state"
+	"go.brendoncarroll.net/state"
 	"golang.org/x/sync/errgroup"
 )
 

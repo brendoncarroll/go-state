@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/brendoncarroll/go-state/cells"
+	"go.brendoncarroll.net/state/cells"
 )
 
 func TestCell[T any](t *testing.T, factory func(t testing.TB) cells.Cell[T]) {

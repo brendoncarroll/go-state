@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/brendoncarroll/go-state"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/state"
 )
 
 func TestMemStore(t *testing.T) {

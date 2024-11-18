@@ -9,7 +9,7 @@ import (
 
 	"database/sql/driver"
 
-	"github.com/brendoncarroll/go-state"
+	"go.brendoncarroll.net/state"
 )
 
 var _ driver.Value = ID{}

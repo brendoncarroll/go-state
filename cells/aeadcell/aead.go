@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/brendoncarroll/go-state/cells"
+	"go.brendoncarroll.net/state/cells"
 )
 
 const MinNonceSize = 20

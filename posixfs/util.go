@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-state"
+	"go.brendoncarroll.net/state"
 )
 
 func NewTestFS(t testing.TB) FS {

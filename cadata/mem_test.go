@@ -3,8 +3,8 @@ package cadata_test
 import (
 	"testing"
 
-	"github.com/brendoncarroll/go-state/cadata"
-	"github.com/brendoncarroll/go-state/cadata/storetest"
+	"go.brendoncarroll.net/state/cadata"
+	"go.brendoncarroll.net/state/cadata/storetest"
 )
 
 func TestMemStore(t *testing.T) {

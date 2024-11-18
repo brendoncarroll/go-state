@@ -6,7 +6,7 @@ import (
 
 	"lukechampine.com/blake3"
 
-	"github.com/brendoncarroll/go-state"
+	"go.brendoncarroll.net/state"
 )
 
 type HashFunc = func(data []byte) ID

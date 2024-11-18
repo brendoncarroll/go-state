@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/brendoncarroll/go-state/kv"
+	"go.brendoncarroll.net/state/kv"
 )
 
 var _ Store = &MemStore{}

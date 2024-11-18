@@ -9,8 +9,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/brendoncarroll/go-state/cells"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/state/cells"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 )

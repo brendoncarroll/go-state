@@ -5,7 +5,7 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/brendoncarroll/go-state/kv"
+	"go.brendoncarroll.net/state/kv"
 	"golang.org/x/sync/errgroup"
 )
 

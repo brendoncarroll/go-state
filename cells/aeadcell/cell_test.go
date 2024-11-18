@@ -6,9 +6,9 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/brendoncarroll/go-state/cells"
-	"github.com/brendoncarroll/go-state/cells/celltest"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/state/cells"
+	"go.brendoncarroll.net/state/cells/celltest"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
